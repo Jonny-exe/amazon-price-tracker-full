@@ -43,16 +43,15 @@ class MyWindow(QMainWindow):
         """Get the data from products file."""
         print(args)
         args.file.seek(0)
-        data = ast.literal_eval(args.file.read())
-        self.data = data
-        self.savedData = self.data.copy()
+        # data = ast.literal_eval(args.file.read())
+        self.data = getOneFromEachUrl()
         logging.debug(f"getJsonFileData:: current data: {self.savedData}")
 
     def saveData(self):
         """Save the self.data in the products file."""
-        newdata = str(self.data) + "\n"
+        newData = str(self.data) + "\n"
         args.file.seek(0)
-        args.file.truncate(args.file.write(newdata))
+        args.file.truncate(args.file.write(newData))
         args.file.flush()
         if args.debug:
             logging.debug("saveData:: re-reading saved data:")
@@ -101,6 +100,16 @@ class MyWindow(QMainWindow):
         url = url.split("/")
         return url[3]
 
+    def convertPriceInStr(price: str) -> int:
+        """Convert the price string into and integer."""
+        # I think should work without a self argument
+        try:
+            priceInt = price.replace(",", ".")
+            priceInt = float(priceInt)
+            return priceInt
+        except ValueError:
+            return 9999
+
     def initLabels(self):
         """Initialize labels."""
         self.products = []
@@ -108,25 +117,32 @@ class MyWindow(QMainWindow):
         self.productsIndex = 0
         self.productsSpaceDiference = 50
         logging.debug(f"initLabels:: {self.data}")
-        self.addLabel(self.data)
+        data = getOneFromEachUrl()
+        self.addLabel(data)
 
-    def addLabel(self, newdata):
+    def addLabel(self, newData):
         """Add label when the add label is called."""
         colorGreen = "background-color: lightgreen"
         colorRed = "background-color: red"
-        for url in newdata:
+        for row in newData:
+            url = row[0]
+            price = row[1]
+            lastData = getSaveData(url)
             # Check if the current url is deleted
-            if newdata[url] == "Deleted":
+            if row[1] == -1:
                 continue
 
             try:
-                if url in self.savedData:
+                # This may fail
+                if url in newData:
                     bigger = self.whichIsMoreExpensive(
-                        newdata[url], self.savedData[url]
+                        # self.lastData has to be something like
+                        # self.lastData[0][0]
+                        price, lastData[1]
                     )
                     logging.debug(f"addLabel:: Which is bigger {bigger}")
                     logging.debug(
-                        f"addLabel:: {newdata[url]} vs {self.savedData[url]}"
+                        f"addLabel:: {newData[url]} vs {self.savedData[url]}"
                     )
                 else:
                     bigger = 0
@@ -142,7 +158,7 @@ class MyWindow(QMainWindow):
             newLabel = QtWidgets.QLabel(self)
             newLabel.setText(
                 f"Product {(self.productsIndex+1)}: "
-                f"{newdata[url]}€\n{shortUrl}"
+                f"{price}€\n{shortUrl}"
             )
             newLabel.move(self.width, self.height)
             newLabel.adjustSize()
@@ -191,8 +207,8 @@ class MyWindow(QMainWindow):
         label.hide()
 
         # Set url to deleted
-        self.data[url] = "Deleted"
-        self.saveData()
+        c.execute("DELETE FROM amazon WHERE url = ?", (url,))
+        c.commit()
         self.replaceProducts(index)
 
     def replaceProducts(self, productIndex: int):
@@ -213,31 +229,44 @@ class MyWindow(QMainWindow):
 
     def newValue(self, url: str):
         """Handle new value after the add product button is pressed."""
-        price = str(getPrice(url))
-        newdata = {}
-        if url not in self.data:
-            newdata[url] = price
-            self.addLabel(newdata)
-        self.data[url] = price
+        valueExists = self.valueAreadyExists()
+        if not valueExists:
+            price = str(getPrice(url))
+            values = [(url, price)]
+            self.addItemToDb(url, price)
+            self.addLabel(values)
+
+    def addItemToDb(url, price):
+        """Add a new value to the Db."""
+        unix = time.time()
+        date = str(datetime.datetime.fromtimestamp(unix).strftime(
+            '%Y-%m-%-d %H: %M: %S'))
+        c.execute("INSERT INTO amazon (url, price, datestamp, unix)"
+                  "VALUES(?, ?, ?, ?)",
+                  (url, price, date, unix))
+        conn.commit()
+
+    def valueAreadyExists(url) -> bool:
+        """Determine if the value already exists."""
+        c.execute("SELECT id FROM amazon WHERE url= ?",
+                  (url,)
+                  )
+        data = c.fetchone()
+        if data:
+            return True
+        return False
 
     def whichIsMoreExpensive(self, price1: str, price2: str) -> int:
         """Determine which is more expensive from the arguments."""
-        try:
-            price1 = price1.replace(",", ".")
-            price2 = price2.replace(",", ".")
-            price1 = float(price1)
-            price2 = float(price2)
-            if price1 > price2:
-                # If prize1 is bigger return 1
-                return 1
-            elif price1 < price2:
-                # If prize2 is bigger return -1
-                return -1
-            return 0
-            # If they are the same return -1
-        except ValueError:
-            # If the input is a value you cant float
-            return 0
+        price1 = self.convertPriceInStr(price1)
+        price2 = self.convertPriceInStr(price2)
+        if price1 > price2:
+            # If prize1 is bigger return 1
+            return 1
+        elif price1 < price2:
+            # If prize2 is bigger return -1
+            return -1
+        return 0
 
     def checkCurretDataValue(self):
         """Check the products in data if the price is correct."""
@@ -263,22 +292,46 @@ def window(args):
 def create_table():
     """Do creates a table."""
     c.execute(
-        'CREATE TABLE IF NOT EXISTS amazon(url TEXT, price TEXT, datestamp TEXT, unix REAL, id INTEGER PRIMARY KEY AUTOINCREMENT,)'
+        'CREATE TABLE IF NOT EXISTS amazon(url TEXT, price TEXT,\
+        datestamp TEXT, unix REAL, id INTEGER PRIMARY KEY AUTOINCREMENT)'
     )
 
 
-def accesData(url: str):
-    "Get the price that corresponds to the "
-    c.execute("SELECT price FROM amazon WHERE url = ?",
-              (url,)
+def getAllData():
+    c.execute("SELECT * FROM amazon")
+    return c.fetchall()
+
+
+def getSaveData(url):
+    """Get the second last data."""
+    c.execute("SELECT price FROM amazon WHERE url = ?\
+     ORDER BY unix DESC LIMIT 2",
+              (url,))
+    data = c.fetchall()
+    return data[1]
+
+
+def getPriceFromDb(URL: str) -> int:
+    """Read the database and return the price of the url in the arguments."""
+    c.execute('SELECT price, id FROM amazon WHERE url = ? ORDER BY id DESC',
+              (URL,)
               )
     data = c.fetchall()
-    for x in data:
-        print(x)
+    print(f"data [0] is : {data[0]}")
+
+    return data[0][0]
+
+
+def getOneFromEachUrl():
+    """Get one from each url."""
+    c.execute("SELECT url, price FROM amazon GROUP BY price\
+            ORDER BY Id ASC")
+    data = c.fetchall()
+    return data
 
 
 def getPrice(url) -> str:
-    """Get price for the url thats passed as an argument."""
+    """Get price for the url that is passed as an argument."""
     try:
         sauce = urllib.request.urlopen(url)
         soup = bs.BeautifulSoup(sauce, "lxml")
