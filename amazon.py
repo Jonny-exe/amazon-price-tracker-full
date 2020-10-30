@@ -31,32 +31,32 @@ class MyWindow(QMainWindow):
     def __init__(self, args):
         """Initialize the class functions."""
         super(MyWindow, self).__init__()
-        self.newVars()
-        self.getJsonFileData()
+        self.new_vars()
+        self.get_file_data()
         self.setGeometry(1000, 1600, 900, 900)
         self.setWindowTitle("Track amazon products")
-        self.initUI()
-        self.checkCurretDataValue()
-        self.initLabels()
+        self.init_ui()
+        self.check_current_data_value()
+        self.init_labels()
 
-    def getJsonFileData(self):
+    def get_file_data(self):
         """Get the data from products file."""
         print(args)
         args.file.seek(0)
         # data = ast.literal_eval(args.file.read())
         self.data = getOneFromEachUrl()
-        logging.debug(f"getJsonFileData:: current data: {self.savedData}")
+        logging.debug(f"get_file_data:: current data: {self.data}")
 
-    def saveData(self):
+    def save_data(self):
         """Save the self.data in the products file."""
         newData = str(self.data) + "\n"
         args.file.seek(0)
         args.file.truncate(args.file.write(newData))
         args.file.flush()
         if args.debug:
-            logging.debug("saveData:: re-reading saved data:")
+            logging.debug("save_data:: re-reading saved data:")
 
-    def newVars(self):
+    def new_vars(self):
         """Set initial vars."""
         self.height = 140
         self.width = 30
@@ -65,7 +65,7 @@ class MyWindow(QMainWindow):
         self.args = args
         self.icon = "/home/a/"
 
-    def initUI(self):
+    def init_ui(self):
         """Perform initial setup."""
         height = 50
 
@@ -82,25 +82,25 @@ class MyWindow(QMainWindow):
         b1.setText("Add product")
         b1.setGeometry(650, height, 100, 30)
         b1.move(650, height)
-        b1.clicked.connect(self.mainButtonClicked)
+        b1.clicked.connect(self.main_button_clicked)
 
         # Create main input
         self.input = QtWidgets.QLineEdit(self)
         self.input.move(self.width, height)
         self.input.resize(600, 30)
 
-    def mainButtonClicked(self):
+    def main_button_clicked(self):
         """Do the action after the add products button is clicked."""
         url = self.input.text()
-        self.newValue(url)
-        self.checkCurretDataValue()
+        self.new_value(url)
+        self.check_current_data_value()
 
-    def shortenUrl(self, url: str) -> str:
+    def shorten_url(self, url: str) -> str:
         """Shorten the URL to the product name."""
         url = url.split("/")
         return url[3]
 
-    def convertPriceInStr(price: str) -> int:
+    def convert_price_in_str(price: str) -> int:
         """Convert the price string into and integer."""
         # I think should work without a self argument
         try:
@@ -110,24 +110,24 @@ class MyWindow(QMainWindow):
         except ValueError:
             return 9999
 
-    def initLabels(self):
+    def init_labels(self):
         """Initialize labels."""
         self.products = []
         self.closeButtons = []
         self.productsIndex = 0
         self.productsSpaceDiference = 50
-        logging.debug(f"initLabels:: {self.data}")
+        logging.debug(f"init_labels:: {self.data}")
         data = getOneFromEachUrl()
-        self.addLabel(data)
+        self.add_label(data)
 
-    def addLabel(self, newData):
+    def add_label(self, newData):
         """Add label when the add label is called."""
         colorGreen = "background-color: lightgreen"
         colorRed = "background-color: red"
         for row in newData:
             url = row[0]
             price = row[1]
-            lastData = getSaveData(url)
+            lastData = getsave_data(url)
             # Check if the current url is deleted
             if row[1] == -1:
                 continue
@@ -135,24 +135,24 @@ class MyWindow(QMainWindow):
             try:
                 # This may fail
                 if url in newData:
-                    bigger = self.whichIsMoreExpensive(
+                    bigger = self.which_is_more_expensive(
                         # self.lastData has to be something like
                         # self.lastData[0][0]
                         price, lastData[1]
                     )
-                    logging.debug(f"addLabel:: Which is bigger {bigger}")
+                    logging.debug(f"add_label:: Which is bigger {bigger}")
                     logging.debug(
-                        f"addLabel:: {newData[url]} vs {self.savedData[url]}"
+                        f"add_label:: {lastData[0]} vs {row[0]}"
                     )
                 else:
                     bigger = 0
             except ValueError:  # catch *all* exceptions
                 e = sys.exc_info()[0]
                 logging.error(
-                    f"addLabel:: Caught exception\n{e}\n{url}\n{self.data}."
+                    f"add_label:: Caught exception\n{e}\n{url}\n{self.data}."
                 )
 
-            shortUrl = self.shortenUrl(url)
+            shortUrl = self.shorten_url(url)
 
             # Create the label
             newLabel = QtWidgets.QLabel(self)
@@ -174,7 +174,7 @@ class MyWindow(QMainWindow):
             newButton = QtWidgets.QPushButton(self)
             newButton.setText("⨉")
             removeFunction = partial(
-                self.removeProduct,
+                self.remove_products,
                 newLabel,
                 newButton,
                 self.productsIndex,
@@ -185,7 +185,7 @@ class MyWindow(QMainWindow):
             newButton.clicked.connect(removeFunction)
             self.closeButtons.append(newButton)
 
-            logging.debug(f"addLabel:: {newButton}")
+            logging.debug(f"add_label:: {newButton}")
 
             # Show the made items and increase iterators
             newLabel.show()
@@ -193,9 +193,9 @@ class MyWindow(QMainWindow):
             self.height += self.productsSpaceDiference
             self.productsIndex += 1
 
-    def removeProduct(self, label, button, index, checked, url):
+    def remove_products(self, label, button, index, checked, url):
         """Remove products when the x button is pressed."""
-        logging.debug(f"removeProduct:: {self}")
+        logging.debug(f"remove_products:: {self}")
         logging.debug(
             f"self: {self}, button: {type(button)} {button}, index: {index},",
             f"checked: {type(checked)}",
@@ -209,9 +209,9 @@ class MyWindow(QMainWindow):
         # Set url to deleted
         c.execute("DELETE FROM amazon WHERE url = ?", (url,))
         c.commit()
-        self.replaceProducts(index)
+        self.replace_products(index)
 
-    def replaceProducts(self, productIndex: int):
+    def replace_products(self, productIndex: int):
         """Replace the products in the correct spot."""
         for index in range(productIndex, len(self.products)):
             label = self.products[index]
@@ -227,16 +227,16 @@ class MyWindow(QMainWindow):
                 self.widthButton, yPosButton - self.productsSpaceDiference
             )
 
-    def newValue(self, url: str):
+    def new_value(self, url: str):
         """Handle new value after the add product button is pressed."""
-        valueExists = self.valueAreadyExists()
+        valueExists = self.value_already_exists()
         if not valueExists:
             price = str(getPrice(url))
             values = [(url, price)]
-            self.addItemToDb(url, price)
-            self.addLabel(values)
+            self.add_item_to_db(url, price)
+            self.add_label(values)
 
-    def addItemToDb(url, price):
+    def add_item_to_db(url, price):
         """Add a new value to the Db."""
         unix = time.time()
         date = str(datetime.datetime.fromtimestamp(unix).strftime(
@@ -246,7 +246,7 @@ class MyWindow(QMainWindow):
                   (url, price, date, unix))
         conn.commit()
 
-    def valueAreadyExists(url) -> bool:
+    def value_already_exists(url) -> bool:
         """Determine if the value already exists."""
         c.execute("SELECT id FROM amazon WHERE url= ?",
                   (url,)
@@ -256,10 +256,10 @@ class MyWindow(QMainWindow):
             return True
         return False
 
-    def whichIsMoreExpensive(self, price1: str, price2: str) -> int:
+    def which_is_more_expensive(self, price1: str, price2: str) -> int:
         """Determine which is more expensive from the arguments."""
-        price1 = self.convertPriceInStr(price1)
-        price2 = self.convertPriceInStr(price2)
+        price1 = self.convert_price_in_str(price1)
+        price2 = self.convert_price_in_str(price2)
         if price1 > price2:
             # If prize1 is bigger return 1
             return 1
@@ -268,17 +268,17 @@ class MyWindow(QMainWindow):
             return -1
         return 0
 
-    def checkCurretDataValue(self):
+    def check_current_data_value(self):
         """Check the products in data if the price is correct."""
-        jsonData = self.data.copy()
-        for url in jsonData:
-            if self.data[url] == "Deleted":
-                self.data.pop(url)
+        dataCopy = self.data.copy()
+        for row in dataCopy:
+            if row[1] == "Deleted":
+                c.execute("DELETE FROM amazon WHERE price = ?", ("Deleted"))
                 continue
-            price = getPrice(url)
+            price = getPrice(row[0])
             if price != self.data[url]:
                 self.data[url] = price
-        self.saveData()
+        self.save_data()
 
 
 def window(args):
@@ -302,7 +302,7 @@ def getAllData():
     return c.fetchall()
 
 
-def getSaveData(url):
+def getsave_data(url):
     """Get the second last data."""
     c.execute("SELECT price FROM amazon WHERE url = ?\
      ORDER BY unix DESC LIMIT 2",
