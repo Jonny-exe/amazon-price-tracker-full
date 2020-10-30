@@ -1,10 +1,8 @@
 #!/usr/bin/python3
 """Do the necessary imports."""
 import argparse
-import ast
 import datetime
 import logging
-import random
 import signal
 import sqlite3
 import sys
@@ -25,12 +23,12 @@ conn = sqlite3.connect('amazon.db')
 c = conn.cursor()
 
 
-class MyWindow(QMainWindow):
+class my_window(QMainWindow):
     """Handle GUI for Amazon price tracking."""
 
     def __init__(self, args):
         """Initialize the class functions."""
-        super(MyWindow, self).__init__()
+        super(my_window, self).__init__()
         self.new_vars()
         self.get_file_data()
         self.setGeometry(1000, 1600, 900, 900)
@@ -44,7 +42,7 @@ class MyWindow(QMainWindow):
         print(args)
         args.file.seek(0)
         # data = ast.literal_eval(args.file.read())
-        self.data = getOneFromEachUrl()
+        self.data = get_one_from_each_url()
         logging.debug(f"get_file_data:: current data: {self.data}")
 
     def save_data(self):
@@ -60,7 +58,7 @@ class MyWindow(QMainWindow):
         """Set initial vars."""
         self.height = 140
         self.width = 30
-        self.widthButton = 600
+        self.width_button = 600
         self.errorMesagge = "Too many requests, try again in 15 mins"
         self.args = args
         self.icon = "/home/a/"
@@ -97,37 +95,40 @@ class MyWindow(QMainWindow):
 
     def shorten_url(self, url: str) -> str:
         """Shorten the URL to the product name."""
-        url = url.split("/")
-        return url[3]
+        split_url = url.split("/")
+        if split_url[3] == "dp":
+            return get_product_name(url)
+        else:
+            return url[3]
 
     def convert_price_in_str(price: str) -> int:
         """Convert the price string into and integer."""
         # I think should work without a self argument
         try:
-            priceInt = price.replace(",", ".")
-            priceInt = float(priceInt)
-            return priceInt
+            price_int = price.replace(",", ".")
+            price_int = float(price_int)
+            return price_int
         except ValueError:
             return 9999
 
     def init_labels(self):
         """Initialize labels."""
         self.products = []
-        self.closeButtons = []
-        self.productsIndex = 0
-        self.productsSpaceDiference = 50
+        self.close_buttons = []
+        self.products_index = 0
+        self.products_space_difference = 50
         logging.debug(f"init_labels:: {self.data}")
-        data = getOneFromEachUrl()
+        data = get_one_from_each_url()
         self.add_label(data)
 
     def add_label(self, newData):
         """Add label when the add label is called."""
-        colorGreen = "background-color: lightgreen"
-        colorRed = "background-color: red"
+        color_green = "background-color: lightgreen"
+        color_red = "background-color: red"
         for row in newData:
             url = row[0]
             price = row[1]
-            lastData = getsave_data(url)
+            last_data = get_last_data(url)
             # Check if the current url is deleted
             if row[1] == -1:
                 continue
@@ -136,13 +137,13 @@ class MyWindow(QMainWindow):
                 # This may fail
                 if url in newData:
                     bigger = self.which_is_more_expensive(
-                        # self.lastData has to be something like
-                        # self.lastData[0][0]
-                        price, lastData[1]
+                        # self.last_data has to be something like
+                        # self.last_data[0][0]
+                        price, last_data[1]
                     )
                     logging.debug(f"add_label:: Which is bigger {bigger}")
                     logging.debug(
-                        f"add_label:: {lastData[0]} vs {row[0]}"
+                        f"add_label:: {last_data[0]} vs {row[0]}"
                     )
                 else:
                     bigger = 0
@@ -152,46 +153,46 @@ class MyWindow(QMainWindow):
                     f"add_label:: Caught exception\n{e}\n{url}\n{self.data}."
                 )
 
-            shortUrl = self.shorten_url(url)
+            short_url = self.shorten_url(url)
 
             # Create the label
-            newLabel = QtWidgets.QLabel(self)
-            newLabel.setText(
-                f"Product {(self.productsIndex+1)}: "
-                f"{price}€\n{shortUrl}"
+            new_label = QtWidgets.QLabel(self)
+            new_label.setText(
+                f"Product {(self.products_index+1)}: "
+                f"{price}€\n{short_url}"
             )
-            newLabel.move(self.width, self.height)
-            newLabel.adjustSize()
+            new_label.move(self.width, self.height)
+            new_label.adjustSize()
             if bigger > 0:
-                newLabel.setStyleSheet(colorRed)
+                new_label.setStyleSheet(color_red)
             elif bigger < 0:
-                newLabel.setStyleSheet(colorGreen)
+                new_label.setStyleSheet(color_green)
             elif bigger == 0:
-                newLabel.setStyleSheet("background-color: lightblue")
-            self.products.append(newLabel)
+                new_label.setStyleSheet("background-color: lightblue")
+            self.products.append(new_label)
 
             # Create the close button
-            newButton = QtWidgets.QPushButton(self)
-            newButton.setText("⨉")
+            new_button = QtWidgets.QPushButton(self)
+            new_button.setText("⨉")
             removeFunction = partial(
                 self.remove_products,
-                newLabel,
-                newButton,
-                self.productsIndex,
+                new_label,
+                new_button,
+                self.products_index,
                 False,
                 url,
             )
-            newButton.setGeometry(self.widthButton, self.height, 30, 25)
-            newButton.clicked.connect(removeFunction)
-            self.closeButtons.append(newButton)
+            new_button.setGeometry(self.width_button, self.height, 30, 25)
+            new_button.clicked.connect(removeFunction)
+            self.close_buttons.append(new_button)
 
-            logging.debug(f"add_label:: {newButton}")
+            logging.debug(f"add_label:: {new_button}")
 
             # Show the made items and increase iterators
-            newLabel.show()
-            newButton.show()
-            self.height += self.productsSpaceDiference
-            self.productsIndex += 1
+            new_label.show()
+            new_button.show()
+            self.height += self.products_space_difference
+            self.products_index += 1
 
     def remove_products(self, label, button, index, checked, url):
         """Remove products when the x button is pressed."""
@@ -208,35 +209,39 @@ class MyWindow(QMainWindow):
 
         # Set url to deleted
         c.execute("DELETE FROM amazon WHERE url = ?", (url,))
-        c.commit()
+        conn.commit()
         self.replace_products(index)
 
-    def replace_products(self, productIndex: int):
+    def replace_products(self, product_index: int):
         """Replace the products in the correct spot."""
-        for index in range(productIndex, len(self.products)):
+        logging.debug(
+            "replace_products:: prodecuts where replaced"
+        )
+        for index in range(product_index, len(self.products)):
             label = self.products[index]
-            button = self.closeButtons[index]
+            button = self.close_buttons[index]
 
-            yPosLabel = label.y()
-            yPosButton = button.y()
+            y_pos_label = label.y()
+            x_pos_label = button.y()
 
-            self.height -= self.productsSpaceDiference
+            self.height -= self.products_space_difference
 
-            label.move(self.width, yPosLabel - self.productsSpaceDiference)
+            label.move(
+                self.width, y_pos_label - self.products_space_difference)
             button.move(
-                self.widthButton, yPosButton - self.productsSpaceDiference
+                self.width_button, x_pos_label - self.products_space_difference
             )
 
     def new_value(self, url: str):
         """Handle new value after the add product button is pressed."""
-        valueExists = self.value_already_exists()
-        if not valueExists:
-            price = str(getPrice(url))
+        value_exists = self.value_already_exists(url)
+        if not value_exists:
+            price = str(get_price(url))
             values = [(url, price)]
             self.add_item_to_db(url, price)
             self.add_label(values)
 
-    def add_item_to_db(url, price):
+    def add_item_to_db(self, url, price):
         """Add a new value to the Db."""
         unix = time.time()
         date = str(datetime.datetime.fromtimestamp(unix).strftime(
@@ -246,7 +251,7 @@ class MyWindow(QMainWindow):
                   (url, price, date, unix))
         conn.commit()
 
-    def value_already_exists(url) -> bool:
+    def value_already_exists(self, url: str) -> bool:
         """Determine if the value already exists."""
         c.execute("SELECT id FROM amazon WHERE url= ?",
                   (url,)
@@ -270,21 +275,24 @@ class MyWindow(QMainWindow):
 
     def check_current_data_value(self):
         """Check the products in data if the price is correct."""
-        dataCopy = self.data.copy()
-        for row in dataCopy:
+        data_copy = self.data.copy()
+        for row in data_copy:
             if row[1] == "Deleted":
                 c.execute("DELETE FROM amazon WHERE price = ?", ("Deleted"))
+                conn.commit()
                 continue
-            price = getPrice(row[0])
-            if price != self.data[url]:
-                self.data[url] = price
+            price = get_price(row[0])
+
+            if price != row[1]:
+                c.execute("UPDATE amazon SET price = ? WHERE id = ?",
+                          (price, row[2],))
         self.save_data()
 
 
 def window(args):
     """Create the window and go into event loop."""
     app = QApplication([])
-    win = MyWindow(args)
+    win = my_window(args)
     win.show()
     sys.exit(app.exec())
 
@@ -297,40 +305,24 @@ def create_table():
     )
 
 
-def getAllData():
-    c.execute("SELECT * FROM amazon")
-    return c.fetchall()
-
-
-def getsave_data(url):
+def get_last_data(url):
     """Get the second last data."""
     c.execute("SELECT price FROM amazon WHERE url = ?\
      ORDER BY unix DESC LIMIT 2",
               (url,))
     data = c.fetchall()
-    return data[1]
+    return data[0]
 
 
-def getPriceFromDb(URL: str) -> int:
-    """Read the database and return the price of the url in the arguments."""
-    c.execute('SELECT price, id FROM amazon WHERE url = ? ORDER BY id DESC',
-              (URL,)
-              )
-    data = c.fetchall()
-    print(f"data [0] is : {data[0]}")
-
-    return data[0][0]
-
-
-def getOneFromEachUrl():
+def get_one_from_each_url():
     """Get one from each url."""
-    c.execute("SELECT url, price FROM amazon GROUP BY price\
+    c.execute("SELECT url, price, id FROM amazon GROUP BY price\
             ORDER BY Id ASC")
     data = c.fetchall()
     return data
 
 
-def getPrice(url) -> str:
+def get_price(url: str) -> str:
     """Get price for the url that is passed as an argument."""
     try:
         sauce = urllib.request.urlopen(url)
@@ -343,6 +335,25 @@ def getPrice(url) -> str:
             tag = search.text
         # pylama:ignore=E203
         tag = tag[0: len(tag) - 2]
+        logging.debug(tag)
+    except urllib.request.HTTPError:
+        logging.debug("except ocurred")
+        tag = "Too many requests, try again in 15 mins"
+    print(f"this is the tag: {tag}")
+    return tag
+
+
+def get_product_name(url: str) -> str:
+    """Get the product name for the url passed in the arg."""
+    try:
+        print(url)
+        sauce = urllib.request.urlopen(url)
+        soup = bs.BeautifulSoup(sauce, "lxml")
+        search = soup.find("span", {"id": "productTitle"})
+        tag = search.text
+        # pylama:ignore=E203
+        if len(tag) >= 20:
+            tag = f"{tag[0: 20]} .."
         logging.debug(tag)
     except urllib.request.HTTPError:
         logging.debug("except ocurred")
@@ -361,7 +372,7 @@ def init() -> argparse.Namespace:
     parser.add_argument(
         "-d",
         "--debug",
-        default=True,
+        default=False,
         action="store_true",
         help="Turn debug on",
     )

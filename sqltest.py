@@ -64,7 +64,7 @@ def getOneFromEachUrl():
 
 
 def dynamic_data_entry():
-    url = "asdfas.com"
+    url = "holabro.com"
     for x in range(10):
         time.sleep(1)
         unix = time.time()
@@ -88,11 +88,16 @@ def accesData(url):
         print("hi there")
 
 
+def deleteSomeRow(url):
+    c.execute("DELETE FROM amazon WHERE url = ?", (url,))
+    conn.commit()
+
+
 create_table()
-# dynamic_data_entry()
+dynamic_data_entry()
 # getPriceFromDb("asdfas.com")
 # getPriceFromDb2("asdfas.com")
-getSaveData("asdfas.com")
+# getSaveData("asdfas.com")
 # getOneFromEachUrl()
 # accesData("asdfas.com")
 getAllData()
