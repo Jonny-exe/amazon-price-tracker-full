@@ -39,7 +39,6 @@ class my_window(QMainWindow):
 
     def get_file_data(self):
         """Get the data from products file."""
-        print(args)
         args.file.seek(0)
         # data = ast.literal_eval(args.file.read())
         self.data = get_one_from_each_url()
@@ -99,7 +98,7 @@ class my_window(QMainWindow):
         if split_url[3] == "dp":
             return get_product_name(url)
         else:
-            return url[3]
+            return split_url[3]
 
     def convert_price_in_str(price: str) -> int:
         """Convert the price string into and integer."""
@@ -339,26 +338,23 @@ def get_price(url: str) -> str:
     except urllib.request.HTTPError:
         logging.debug("except ocurred")
         tag = "Too many requests, try again in 15 mins"
-    print(f"this is the tag: {tag}")
     return tag
 
 
 def get_product_name(url: str) -> str:
     """Get the product name for the url passed in the arg."""
     try:
-        print(url)
         sauce = urllib.request.urlopen(url)
         soup = bs.BeautifulSoup(sauce, "lxml")
         search = soup.find("span", {"id": "productTitle"})
         tag = search.text
+        tag = tag.split('\n')
         # pylama:ignore=E203
-        if len(tag) >= 20:
-            tag = f"{tag[0: 20]} .."
         logging.debug(tag)
     except urllib.request.HTTPError:
         logging.debug("except ocurred")
         tag = "Too many requests, try again in 15 mins"
-    return tag
+    return tag[8]
 
 
 def init() -> argparse.Namespace:
