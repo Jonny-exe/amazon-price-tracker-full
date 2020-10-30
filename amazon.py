@@ -26,32 +26,15 @@ c = conn.cursor()
 class my_window(QMainWindow):
     """Handle GUI for Amazon price tracking."""
 
-    def __init__(self, args):
+    def __init__(self):
         """Initialize the class functions."""
         super(my_window, self).__init__()
         self.new_vars()
-        self.get_file_data()
         self.setGeometry(1000, 1600, 900, 900)
         self.setWindowTitle("Track amazon products")
         self.init_ui()
         self.check_current_data_value()
         self.init_labels()
-
-    def get_file_data(self):
-        """Get the data from products file."""
-        args.file.seek(0)
-        # data = ast.literal_eval(args.file.read())
-        self.data = get_one_from_each_url()
-        logging.debug(f"get_file_data:: current data: {self.data}")
-
-    def save_data(self):
-        """Save the self.data in the products file."""
-        newData = str(self.data) + "\n"
-        args.file.seek(0)
-        args.file.truncate(args.file.write(newData))
-        args.file.flush()
-        if args.debug:
-            logging.debug("save_data:: re-reading saved data:")
 
     def new_vars(self):
         """Set initial vars."""
@@ -59,7 +42,8 @@ class my_window(QMainWindow):
         self.width = 30
         self.width_button = 600
         self.errorMesagge = "Too many requests, try again in 15 mins"
-        self.args = args
+        self.data = get_one_from_each_url()
+        # self.args = args
         self.icon = "/home/a/"
 
     def init_ui(self):
@@ -285,13 +269,14 @@ class my_window(QMainWindow):
             if price != row[1]:
                 c.execute("UPDATE amazon SET price = ? WHERE id = ?",
                           (price, row[2],))
-        self.save_data()
+        # self.save_data()
 
 
-def window(args):
+def window():
     """Create the window and go into event loop."""
     app = QApplication([])
-    win = my_window(args)
+    # win = my_window(args)
+    win = my_window()
     win.show()
     sys.exit(app.exec())
 
@@ -354,7 +339,7 @@ def get_product_name(url: str) -> str:
     except urllib.request.HTTPError:
         logging.debug("except ocurred")
         tag = "Too many requests, try again in 15 mins"
-    return tag[8]
+    return f"{tag[8][0: 30]} ..."
 
 
 def init() -> argparse.Namespace:
@@ -372,37 +357,38 @@ def init() -> argparse.Namespace:
         action="store_true",
         help="Turn debug on",
     )
-    parser.add_argument(
-        "-f",
-        "--file",
-        # r...read, w...write, +...update(read and write),
-        # t...text mode, b...binary
-        # see: https://docs.python.org/3/library/functions.html#open
-        type=argparse.FileType("r+"),
-        default=filenameDefault,
-        # const=filenameDefault,
-        # nargs="?",
-        help="file for product listings",
-    )
-    args = parser.parse_args()
-    if args.debug:
-        logging.basicConfig(level=logging.DEBUG)
-    else:
-        logging.basicConfig(level=logging.INFO)
-    logging.debug(f"init:: args is set to: {args}")
-    logging.debug(f"init:: debug is set to: {args.debug}")
-    logging.debug(f"init:: file is set to: {args.file.name}")
+    # parser.add_argument(
+    #     "-f",
+    #     "--file",
+    #     # r...read, w...write, +...update(read and write),
+    #     # t...text mode, b...binary
+    #     # see: https://docs.python.org/3/library/functions.html#open
+    #     type=argparse.FileType("r+"),
+    #     default=filenameDefault,
+    #     # const=filenameDefault,
+    #     # nargs="?",
+    #     help="file for product listings",
+    # )
+    # args = parser.parse_args()
+    # if args.debug:
+    #     logging.basicConfig(level=logging.DEBUG)
+    # else:
+    #     logging.basicConfig(level=logging.INFO)
+    # logging.debug(f"init:: args is set to: {args}")
+    # logging.debug(f"init:: debug is set to: {args.debug}")
+    # logging.debug(f"init:: file is set to: {args.file.name}")
     create_table()
     # get the file content jsonData = ast.literal_eval(args.file.read())
     # logging.debug(f"init:: Initial state of file is: {jsonData}.")
-    return args
+    # return args
 
 
 # main
 try:
-    args = init()
-    window(args)
-    args.file.close()
+    # args = init()
+    # window(args)
+    window()
+    # args.file.close()
 except KeyboardInterrupt:
     logging.debug("Received keyboard interrupt.")
     raise
