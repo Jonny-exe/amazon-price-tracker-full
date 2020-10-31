@@ -46,6 +46,7 @@ class ProductDatabase:
         """Initialize the class methods and instance variables.
 
         Arguments:
+        ==========
             args: argparse.Namespace -- arguments from argparse
             db_file_path: str -- path and name of sqlite3 database file
         """
@@ -92,6 +93,7 @@ class ProductDatabase:
         """Get the last 2 rows.
 
         Arguments:
+        ==========
             url:str -- URL entry in db, used to search for rows
         """
         self.cursor.execute(
@@ -122,6 +124,7 @@ class ProductDatabase:
         """Get unixtime and price for rows matching URL.
 
         Arguments:
+        ==========
             url:str -- URL entry in db, used to search for rows
         """
         self.cursor.execute(
@@ -134,6 +137,7 @@ class ProductDatabase:
         """Get number of rows.
 
         Return:
+        =======
             int -- number of rows in table pointed to by cursor
         """
         self.cursor.execute("SELECT COUNT(*) AS count FROM amazon")
@@ -144,6 +148,7 @@ class ProductDatabase:
         """Delete rows matching URL.
 
         Arguments:
+        ==========
             url:str -- URL entry in db, used to delete rows
         """
         # Set url to deleted
@@ -170,6 +175,7 @@ class ProductWindow(QMainWindow):
         """Initialize the class methods and instance variables.
 
         Arguments:
+        ==========
             args: argparse.Namespace -- arguments from argparse
             db: ProductDatabase -- sqlite3 database object
         """
@@ -503,8 +509,10 @@ def get_price(args, url: str) -> str:
     """Get price for given URL via web scraping.
 
     Arguments:
+    ==========
         url:str -- Amazon product URL
     Return:
+    =======
         str -- product price
     """
     if args.fake_prices:
@@ -543,8 +551,10 @@ def get_product_name(url: str) -> str:
     """Get the product name for a given URL via web scraping.
 
     Arguments:
+    ==========
         url:str -- Amazon product URL
     Return:
+    =======
         str -- product name
     """
     try:
@@ -574,6 +584,7 @@ def init_args() -> argparse.Namespace:
     """Initialize the arguments.
 
     Return:
+    =======
         argparse.Namespace -- namespace with all arguments
     """
     # argparse
@@ -627,6 +638,7 @@ def init() -> argparse.Namespace:
     """Initialize the program.
 
     Return:
+    =======
         argparse.Namespace -- namespace with all arguments from argparse
     """
     # general
@@ -647,9 +659,11 @@ def window(args: argparse.Namespace, db: ProductDatabase) -> int:
     """Create the window and go into event loop.
 
     Arguments:
+    ==========
         argparse.Namespace -- namespace with all arguments from argparse
         db: ProductDatabase -- sqlite3 database object
     Return:
+    =======
         int -- return code from QApplication app
     """
     app = QApplication([])
