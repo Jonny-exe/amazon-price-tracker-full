@@ -42,6 +42,7 @@ class my_window(QMainWindow):
         self.width = 30
         self.WIDTH_CLOSE_BUTTON = 600
         self.WIDTH_LINK_BUTTON = 635
+        self.WIDTH_GRAPH_BUTTON = 670
         self.data = get_one_from_each_url()
         # self.args = args
         self.icon = "/home/a/"
@@ -51,7 +52,7 @@ class my_window(QMainWindow):
         height = 50
 
         # Create main label
-        # TODO: make an on hover show the link
+        # TODO: make an to show what each button does
         label = QtWidgets.QLabel(self)
         # self.label[0].setStyleSheet("background-color: red")
         label.setText("Introduce the link of the product you want to track")
@@ -100,6 +101,7 @@ class my_window(QMainWindow):
         self.products = []
         self.close_buttons = []
         self.link_buttons = []
+        self.graph_buttons = []
         self.products_index = 0
         self.PRODUCTS_SPACE_DIFFERENCE = 50
         logging.debug(f"init_labels:: {self.data}")
@@ -136,57 +138,35 @@ class my_window(QMainWindow):
                     f"add_label:: Caught exception\n{e}\n{url}\n{self.data}."
                 )
 
-            short_url = self.shorten_url(url)
+            # Create the label and define the color
+            new_label = self.create_new_label(url, price)
 
-            # Create the label
-            new_label = QtWidgets.QLabel(self)
-            new_label.setText(
-                f"Product {(self.products_index+1)}: "
-                f"{price}€\n{short_url}"
-            )
-            new_label.move(self.width, self.height)
-            new_label.adjustSize()
             if bigger > 0:
                 new_label.setStyleSheet(COLOR_RED)
             elif bigger < 0:
                 new_label.setStyleSheet(COLOR_GREEN)
             elif bigger == 0:
                 new_label.setStyleSheet("background-color: lightblue")
+
             self.products.append(new_label)
 
             # Create the close button
-            close_button = QtWidgets.QPushButton(self)
-            close_button.setText("⨉")
-            removeFunction = partial(
-                self.remove_products,
-                new_label,
-                close_button,
-                self.products_index,
-                False,
-                url,
-            )
-            close_button.setGeometry(self.WIDTH_CLOSE_BUTTON,
-                                     self.height, 30, 25)
-            close_button.clicked.connect(removeFunction)
+            close_button = self.create_new_close_button(url, new_label)
             self.close_buttons.append(close_button)
 
             # Create the link button
-            link_button = QtWidgets.QPushButton(self)
-            link_button.setText("⇵")
-            copy_link = partial(
-                self.copy_link,
-                url,
-            )
-            link_button.setGeometry(self.WIDTH_LINK_BUTTON,
-                                    self.height, 30, 25)
-            link_button.clicked.connect(copy_link)
+            link_button = self.create_new_link_button(url)
             self.link_buttons.append(link_button)
             logging.debug(f"add_label:: {link_button}")
 
+            # Create the show graph button ⇵
+            graph_button = self.create_new_graph_button(url)
+            self.graph_buttons.append(graph_button)
             # Show the made items and increase iterators
             new_label.show()
             close_button.show()
             link_button.show()
+            graph_button.show()
             self.height += self.PRODUCTS_SPACE_DIFFERENCE
             self.products_index += 1
 
@@ -194,6 +174,62 @@ class my_window(QMainWindow):
         """Set the copy buffer to product url on link_button pressed."""
         print(type(url), url)
         pyperclip.copy(url)
+
+    def create_new_label(self, url, price):
+        """Create a new label."""
+        short_url = self.shorten_url(url)
+
+        new_label = QtWidgets.QLabel(self)
+        new_label.setText(
+            f"Product {(self.products_index+1)}: "
+            f"{price}€\n{short_url}"
+        )
+        new_label.move(self.width, self.height)
+        new_label.adjustSize()
+        return new_label
+
+    def create_new_close_button(self, url: str, new_label):
+        """Create a new close button."""
+        close_button = QtWidgets.QPushButton(self)
+        close_button.setText("⨉")
+        removeFunction = partial(
+            self.remove_products,
+            new_label,
+            close_button,
+            self.products_index,
+            False,
+            url,
+        )
+        close_button.setGeometry(self.WIDTH_CLOSE_BUTTON,
+                                 self.height, 30, 25)
+        close_button.clicked.connect(removeFunction)
+        return close_button
+
+    def create_new_link_button(self, url: str):
+        """Create a new link button."""
+        link_button = QtWidgets.QPushButton(self)
+        link_button.setText("©")
+        copy_link = partial(
+            self.copy_link,
+            url,
+        )
+        link_button.setGeometry(self.WIDTH_LINK_BUTTON,
+                                self.height, 30, 25)
+        link_button.clicked.connect(copy_link)
+        return link_button
+
+    def create_new_graph_button(self, url):
+        """Create a new show graph button."""
+        graph_button = QtWidgets.QPushButton(self)
+        graph_button.setText("⇵")
+        show_product_price_graph = partial(
+            self.show_product_price_graph,
+            url,
+        )
+        graph_button.setGeometry(self.WIDTH_GRAPH_BUTTON,
+                                 self.height, 30, 25)
+        graph_button.clicked.connect(show_product_price_graph)
+        return graph_button
 
     def remove_products(self, label, button, index, checked, url):
         """Remove products when the x button is pressed."""
@@ -219,20 +255,45 @@ class my_window(QMainWindow):
             "replace_products:: prodecuts where replaced"
         )
         for index in range(product_index, len(self.products)):
+            button = []
             label = self.products[index]
-            button = self.close_buttons[index]
+            close_button = self.close_buttons[index]
+            link_button = self.link_buttons[index]
+            button.extend((close_button, link_button))
 
             y_pos_label = label.y()
-            x_pos_label = button.y()
+            y_pos_button = close_button.y()
 
             self.height -= self.PRODUCTS_SPACE_DIFFERENCE
 
             label.move(
                 self.width, y_pos_label - self.PRODUCTS_SPACE_DIFFERENCE)
-            button.move(
-                self.WIDTH_LINK_BUTTON, x_pos_label -
+
+            close_button.move(
+                self.WIDTH_CLOSE_BUTTON, y_pos_button -
                 self.PRODUCTS_SPACE_DIFFERENCE
             )
+            link_button.move(
+                self.WIDTH_LINK_BUTTON, y_pos_button -
+                self.PRODUCTS_SPACE_DIFFERENCE
+            )
+
+    def show_product_price_graph(self, url):
+        """Show a graph of the products price passed through the argument."""
+        c.execute('SELECT unix, price FROM amazon WHERE url = ?', (url,))
+        data = c.fetchall()
+
+        dates = []
+        values = []
+        print(data)
+
+        for row in data:
+            print(row[0], row[1])
+            dates.append(datetime.datetime.fromtimestamp(row[0]))
+            values.append(row[1])
+
+        plt.plot_date(dates, values, '-')
+        plt.show()
 
     def new_value(self, url: str):
         """Handle new value after the add product button is pressed."""
@@ -321,7 +382,7 @@ def get_last_data(url):
 
 def get_one_from_each_url():
     """Get one from each url."""
-    c.execute("SELECT url, price, id FROM amazon GROUP BY price\
+    c.execute("SELECT url, price, id FROM amazon GROUP BY url\
             ORDER BY Id ASC")
     data = c.fetchall()
     return data
@@ -329,6 +390,7 @@ def get_one_from_each_url():
 
 def get_price(url: str) -> str:
     """Get price for the url that is passed as an argument."""
+    print(url, type(url))
     try:
         sauce = urllib.request.urlopen(url)
         soup = bs.BeautifulSoup(sauce, "lxml")
@@ -336,8 +398,12 @@ def get_price(url: str) -> str:
             search = soup.find("span", {"id": "priceblock_dealprice"})
             tag = search.text
         except AttributeError:
-            search = soup.find("span", {"id": "priceblock_ourprice"})
-            tag = search.text
+            try:
+                search = soup.find("span", {"id": "priceblock_ourprice"})
+                tag = search.text
+            except AttributeError:
+                tag = "Not available"
+
         # pylama:ignore=E203
         tag = tag[0: len(tag) - 2]
         logging.debug(tag)

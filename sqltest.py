@@ -2,7 +2,7 @@ import datetime
 import random
 import sqlite3
 import time
-
+from dateutil import parser
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 from matplotlib import style
@@ -93,8 +93,26 @@ def deleteSomeRow(url):
     conn.commit()
 
 
-create_table()
-dynamic_data_entry()
+def graph_data():
+    c.execute('SELECT unix, price FROM amazon')
+    data = c.fetchall()
+
+    dates = []
+    values = []
+
+    for row in data:
+        dates.append(datetime.datetime.fromtimestamp(row[0]))
+        values.append(row[1])
+
+    plt.plot_date(dates, values, '-')
+    plt.show()
+
+
+graph_data()
+
+
+# create_table()
+# dynamic_data_entry()
 # getPriceFromDb("asdfas.com")
 # getPriceFromDb2("asdfas.com")
 # getSaveData("asdfas.com")
