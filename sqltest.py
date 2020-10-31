@@ -93,8 +93,8 @@ def deleteSomeRow(url):
     conn.commit()
 
 
-def graph_data():
-    c.execute('SELECT unix, price FROM amazon')
+def graph_data(url):
+    c.execute('SELECT unix, price FROM amazon WHERE url = ?', (url,))
     data = c.fetchall()
 
     dates = []

@@ -14,7 +14,6 @@ import bs4 as bs
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import pyperclip
-from matplotlib import style
 from PyQt5 import QtWidgets
 from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import QApplication, QMainWindow
@@ -33,7 +32,7 @@ class my_window(QMainWindow):
         self.setGeometry(1000, 1600, 900, 900)
         self.setWindowTitle("Track amazon products")
         self.init_ui()
-        self.check_current_data_value()
+        self.update_current_data_value()
         self.init_labels()
 
     def new_vars(self):
@@ -46,6 +45,7 @@ class my_window(QMainWindow):
         self.data = get_one_from_each_url()
         # self.args = args
         self.icon = "/home/a/"
+        self.error_message = "Too many requests, try again in 15 mins"
 
     def init_ui(self):
         """Perform initial setup."""
@@ -76,7 +76,6 @@ class my_window(QMainWindow):
         """Do the action after the add products button is clicked."""
         url = self.input.text()
         self.new_value(url)
-        self.check_current_data_value()
 
     def shorten_url(self, url: str) -> str:
         """Shorten the URL to the product name."""
@@ -150,10 +149,6 @@ class my_window(QMainWindow):
 
             self.products.append(new_label)
 
-            # Create the close button
-            close_button = self.create_new_close_button(url, new_label)
-            self.close_buttons.append(close_button)
-
             # Create the link button
             link_button = self.create_new_link_button(url)
             self.link_buttons.append(link_button)
@@ -162,6 +157,12 @@ class my_window(QMainWindow):
             # Create the show graph button ⇵
             graph_button = self.create_new_graph_button(url)
             self.graph_buttons.append(graph_button)
+
+            # Create the close button
+            close_button = self.create_new_close_button(
+                url, new_label, link_button, graph_button)
+            self.close_buttons.append(close_button)
+
             # Show the made items and increase iterators
             new_label.show()
             close_button.show()
@@ -172,7 +173,6 @@ class my_window(QMainWindow):
 
     def copy_link(self, url: str):
         """Set the copy buffer to product url on link_button pressed."""
-        print(type(url), url)
         pyperclip.copy(url)
 
     def create_new_label(self, url, price):
@@ -188,21 +188,24 @@ class my_window(QMainWindow):
         new_label.adjustSize()
         return new_label
 
-    def create_new_close_button(self, url: str, new_label):
+    def create_new_close_button(self, url: str, new_label, link_button,
+                                graph_button):
         """Create a new close button."""
         close_button = QtWidgets.QPushButton(self)
         close_button.setText("⨉")
-        removeFunction = partial(
+        remove_function = partial(
             self.remove_products,
             new_label,
             close_button,
+            link_button,
+            graph_button,
             self.products_index,
             False,
             url,
         )
         close_button.setGeometry(self.WIDTH_CLOSE_BUTTON,
                                  self.height, 30, 25)
-        close_button.clicked.connect(removeFunction)
+        close_button.clicked.connect(remove_function)
         return close_button
 
     def create_new_link_button(self, url: str):
@@ -231,17 +234,21 @@ class my_window(QMainWindow):
         graph_button.clicked.connect(show_product_price_graph)
         return graph_button
 
-    def remove_products(self, label, button, index, checked, url):
-        """Remove products when the x button is pressed."""
+    def remove_products(self, label, close_button, link_button, graph_button,
+                        index: int, checked: bool, url: str):
+        """Remove products when the x close_button is pressed."""
         logging.debug(f"remove_products:: {self}")
         logging.debug(
-            f"self: {self}, button: {type(button)} {button}, index: {index},",
+            f"self: {self}, close_button: {type(close_button)} \
+            {close_button}, index: {index},",
             f"checked: {type(checked)}",
         )
-        logging.debug(f"winid is {button.winId()}")
+        logging.debug(f"winid is {close_button.winId()}")
 
-        # Hiding and removing the label and the button
-        button.hide()
+        # Hiding and removing the label and the close_button
+        link_button.hide()
+        close_button.hide()
+        graph_button.hide()
         label.hide()
 
         # Set url to deleted
@@ -255,11 +262,10 @@ class my_window(QMainWindow):
             "replace_products:: prodecuts where replaced"
         )
         for index in range(product_index, len(self.products)):
-            button = []
             label = self.products[index]
             close_button = self.close_buttons[index]
             link_button = self.link_buttons[index]
-            button.extend((close_button, link_button))
+            graph_button = self.graph_buttons[index]
 
             y_pos_label = label.y()
             y_pos_button = close_button.y()
@@ -277,6 +283,10 @@ class my_window(QMainWindow):
                 self.WIDTH_LINK_BUTTON, y_pos_button -
                 self.PRODUCTS_SPACE_DIFFERENCE
             )
+            graph_button.move(
+                self.WIDTH_GRAPH_BUTTON, y_pos_button -
+                self.PRODUCTS_SPACE_DIFFERENCE
+            )
 
     def show_product_price_graph(self, url):
         """Show a graph of the products price passed through the argument."""
@@ -285,10 +295,8 @@ class my_window(QMainWindow):
 
         dates = []
         values = []
-        print(data)
 
         for row in data:
-            print(row[0], row[1])
             dates.append(datetime.datetime.fromtimestamp(row[0]))
             values.append(row[1])
 
@@ -337,20 +345,16 @@ class my_window(QMainWindow):
             return -1
         return 0
 
-    def check_current_data_value(self):
+    def update_current_data_value(self):
         """Check the products in data if the price is correct."""
         data_copy = self.data.copy()
         for row in data_copy:
-            if row[1] == "Deleted":
-                c.execute("DELETE FROM amazon WHERE price = ?", ("Deleted"))
-                conn.commit()
-                continue
-            price = get_price(row[0])
+            url = row[0]
+            price = row[1]
+            price = get_price(url)
+            if price != self.error_message:
+                self.add_item_to_db(url, price)
 
-            if price != row[1]:
-                c.execute("UPDATE amazon SET price = ? WHERE id = ?",
-                          (price, row[2],))
-                conn.commit()
         # self.save_data()
 
 
