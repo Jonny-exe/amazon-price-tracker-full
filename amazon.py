@@ -59,6 +59,8 @@ class product_window(QMainWindow):
     def init_db(self, cursor: sqlite3.Cursor):
         """Initialize database."""
         # nothing to do, this created the table, but moved to main
+        # unnecessary as done in main, just in case code movess around
+        create_table(cursor)
 
     def new_vars(self, args: argparse.Namespace, cursor: sqlite3.Cursor):
         """Create and initialize instance variables."""
@@ -435,7 +437,7 @@ def get_one_from_each_url(cursor: sqlite3.Cursor):
     return data
 
 
-def get_all(cursor: sqlite3.Cursor):
+def get_all_rows(cursor: sqlite3.Cursor):
     """Get all rows.
 
     Arguments:
@@ -444,6 +446,19 @@ def get_all(cursor: sqlite3.Cursor):
     cursor.execute("SELECT url, price, id FROM amazon ORDER BY Id ASC")
     data = cursor.fetchall()
     return data
+
+
+def get_row_count(cursor: sqlite3.Cursor) -> int:
+    """Get number of rows.
+
+    Arguments:
+        cursor:sqlite3.Cursor -- valid database cursor
+    Return:
+        int -- number of rows in table pointed to by cursor
+    """
+    cursor.execute("SELECT COUNT(*) AS count FROM amazon")
+    data = cursor.fetchall()  # e.g [(18,)]
+    return data[0][0]
 
 
 def get_price(args, url: str) -> str:
@@ -599,11 +614,13 @@ def main():
     connection = sqlite3.connect(args.database.name)
     cursor = connection.cursor()
     create_table(cursor)
-    logging.debug(f"main:: db contains these rows: {get_all(cursor)}")
+    logging.debug(f"main:: db contains {get_row_count(cursor)} rows")
+    logging.debug(f"main:: db contains these rows: {get_all_rows(cursor)}")
     ret = window(args, cursor)
     logging.debug("main:: closing down database.")
     connection.commit()
-    logging.debug(f"main:: db contains these rows: {get_all(cursor)}")
+    logging.debug(f"main:: db contains {get_row_count(cursor)} rows")
+    logging.debug(f"main:: db contains these rows: {get_all_rows(cursor)}")
     cursor.close()
     connection.close()
     logging.debug(f"main:: exiting with code {ret}.")
