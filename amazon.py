@@ -46,9 +46,9 @@ class ProductDatabase:
         """Initialize the class methods and instance variables.
 
         Arguments:
-        ==========
             args: argparse.Namespace -- arguments from argparse
             db_file_path: str -- path and name of sqlite3 database file
+
         """
         self.connection = sqlite3.connect(db_file_path)
         self.cursor = self.connection.cursor()  # sqlite3.Cursor
@@ -93,8 +93,8 @@ class ProductDatabase:
         """Get the last 2 rows.
 
         Arguments:
-        ==========
             url:str -- URL entry in db, used to search for rows
+
         """
         self.cursor.execute(
             "SELECT price FROM amazon WHERE url = ? "
@@ -124,8 +124,8 @@ class ProductDatabase:
         """Get unixtime and price for rows matching URL.
 
         Arguments:
-        ==========
             url:str -- URL entry in db, used to search for rows
+
         """
         self.cursor.execute(
             "SELECT unix, price FROM amazon WHERE url = ?", (url,)
@@ -137,8 +137,8 @@ class ProductDatabase:
         """Get number of rows.
 
         Return:
-        =======
             int -- number of rows in table pointed to by cursor
+
         """
         self.cursor.execute("SELECT COUNT(*) AS count FROM amazon")
         data = self.cursor.fetchall()  # e.g [(18,)]
@@ -148,8 +148,8 @@ class ProductDatabase:
         """Delete rows matching URL.
 
         Arguments:
-        ==========
             url:str -- URL entry in db, used to delete rows
+
         """
         # Set url to deleted
         self.cursor.execute("DELETE FROM amazon WHERE url = ?", (url,))
@@ -175,9 +175,9 @@ class ProductWindow(QMainWindow):
         """Initialize the class methods and instance variables.
 
         Arguments:
-        ==========
             args: argparse.Namespace -- arguments from argparse
             db: ProductDatabase -- sqlite3 database object
+
         """
         super(ProductWindow, self).__init__()
         self.new_vars(args, db)  # sets instance variables
@@ -509,11 +509,10 @@ def get_price(args, url: str) -> str:
     """Get price for given URL via web scraping.
 
     Arguments:
-    ==========
         url:str -- Amazon product URL
     Return:
-    =======
         str -- product price
+
     """
     if args.fake_prices:
         random_price = str(random.randint(10, 100))
@@ -534,7 +533,7 @@ def get_price(args, url: str) -> str:
             except AttributeError:
                 tag = "Not available "
 
-        tag = tag[0 : len(tag) - 2]  # noqa
+        tag = tag[0: len(tag) - 2]  # noqa
         logging.debug(f"get_price:: tag is {tag}")
     except urllib.request.HTTPError as e:
         logging.debug(f"get_price:: exception occurred: {e}")
@@ -551,11 +550,10 @@ def get_product_name(url: str) -> str:
     """Get the product name for a given URL via web scraping.
 
     Arguments:
-    ==========
         url:str -- Amazon product URL
     Return:
-    =======
         str -- product name
+
     """
     try:
         sauce = urllib.request.urlopen(url)
@@ -584,8 +582,8 @@ def init_args() -> argparse.Namespace:
     """Initialize the arguments.
 
     Return:
-    =======
         argparse.Namespace -- namespace with all arguments
+
     """
     # argparse
     signal.signal(signal.SIGINT, signal.SIG_DFL)
@@ -638,8 +636,8 @@ def init() -> argparse.Namespace:
     """Initialize the program.
 
     Return:
-    =======
         argparse.Namespace -- namespace with all arguments from argparse
+
     """
     # general
     signal.signal(signal.SIGINT, signal.SIG_DFL)  # for PyQt5 GUI
@@ -659,12 +657,11 @@ def window(args: argparse.Namespace, db: ProductDatabase) -> int:
     """Create the window and go into event loop.
 
     Arguments:
-    ==========
         argparse.Namespace -- namespace with all arguments from argparse
         db: ProductDatabase -- sqlite3 database object
     Return:
-    =======
         int -- return code from QApplication app
+
     """
     app = QApplication([])
     win = ProductWindow(args, db)
