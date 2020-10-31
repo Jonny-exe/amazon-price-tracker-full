@@ -472,7 +472,7 @@ class ProductWindow(QMainWindow):
 
 
 def which_is_more_expensive(price1: str, price2: str) -> int:
-    """Determine which is more expensive from the arguments."""
+    """Determine which price is higher."""
     price1 = convert_price_in_str(price1)
     price2 = convert_price_in_str(price2)
     if price1 > price2:
@@ -483,13 +483,13 @@ def which_is_more_expensive(price1: str, price2: str) -> int:
 
 
 def copy_link_to_clipboard(url: str):
-    """Set the copy buffer to product url on link_button pressed."""
+    """Copy URL to system clipboard."""
     pyperclip.copy(url)
     logging.debug(f"copy_link_to_clipboard:: copied URL {url} to clipboard.")
 
 
 def convert_price_in_str(price: str) -> int:
-    """Convert the price string into and integer."""
+    """Convert the price string into an integer."""
     try:
         price_int = price.replace(",", ".")
         price_int = float(price_int)
@@ -500,7 +500,13 @@ def convert_price_in_str(price: str) -> int:
 
 
 def get_price(args, url: str) -> str:
-    """Get price for the url that is passed as an argument."""
+    """Get price for given URL via web scraping.
+
+    Arguments:
+        url:str -- Amazon product URL
+    Return:
+        str -- product price
+    """
     if args.fake_prices:
         random_price = str(random.randint(10, 100))
         logging.debug(
