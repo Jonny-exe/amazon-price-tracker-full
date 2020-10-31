@@ -32,49 +32,169 @@ ERROR_MSG_429 = "Price unavailable."
 # example_global_var = 12
 
 
-# Classes
+################################################################
+# Class ProductDatabase
+################################################################
 
 
-class product_window(QMainWindow):
-    """Handle GUI for Amazon price tracking."""
+class ProductDatabase:
+    """Handle database for Amazon price tracking."""
 
     # class variables here, use only when required
 
-    def __init__(self, args: argparse.Namespace, cursor: sqlite3.Cursor):
+    def __init__(self, args: argparse.Namespace, db_file_path: str):
         """Initialize the class methods and instance variables.
 
         Arguments:
             args: argparse.Namespace -- arguments from argparse
-            cursor:sqlite3.Cursor -- valid database cursor
+            db_file_path: str -- path and name of sqlite3 database file
         """
-        super(product_window, self).__init__()
-        self.init_db(cursor)  # before new_vars()
-        self.new_vars(args, cursor)  # sets instance variables
+        self.connection = sqlite3.connect(db_file_path)
+        self.cursor = self.connection.cursor()  # sqlite3.Cursor
+        self.create_table()
+        logging.debug(f"init:: rows in db: {self.get_row_count()}")
+        logging.debug(f"init:: db rows: {self.get_all_rows()}")
+
+    def create_table(self):
+        """Create table iff does not exist."""
+        self.cursor.execute(
+            "CREATE TABLE IF NOT EXISTS amazon(url TEXT, price TEXT, "
+            "datestamp TEXT, unix REAL, id INTEGER PRIMARY KEY AUTOINCREMENT)"
+        )
+        self.cursor.connection.commit()
+
+    def close(self):
+        """Close database."""
+        logging.debug("close:: closing down database.")
+        self.cursor.connection.commit()
+        logging.debug(f"close:: rows in db: {self.get_row_count()}")
+        logging.debug(f"close:: db rows: {self.get_all_rows()}")
+        self.cursor.close()
+        self.cursor.connection.close()
+
+    def add_item_to_db(self, url: str, price: str):
+        """Add a new product to the database."""
+        unix = time.time()
+        date = str(
+            datetime.datetime.fromtimestamp(unix).strftime(
+                "%Y-%m-%-d %H:%M:%S"
+            )
+        )
+        self.cursor.execute(
+            "INSERT INTO amazon (url, price, datestamp, unix)"
+            "VALUES(?, ?, ?, ?)",
+            (url, price, date, unix),
+        )
+        self.cursor.connection.commit()
+        logging.debug(f"add_item_to_db: product for {url} added to db.")
+
+    def get_last_data(self, url: str):
+        """Get the last 2 rows.
+
+        Arguments:
+            url:str -- URL entry in db, used to search for rows
+        """
+        self.cursor.execute(
+            "SELECT price FROM amazon WHERE url = ? "
+            "ORDER BY unix DESC LIMIT 2",
+            (url,),
+        )
+        data = self.cursor.fetchall()
+        return data[0]
+
+    def get_one_from_each_url(self):
+        """Get one row for each URL."""
+        self.cursor.execute(
+            "SELECT url, price, id FROM amazon GROUP BY url ORDER BY Id ASC"
+        )
+        data = self.cursor.fetchall()
+        return data
+
+    def get_all_rows(self):
+        """Get all rows."""
+        self.cursor.execute(
+            "SELECT url, price, id FROM amazon ORDER BY Id ASC"
+        )
+        data = self.cursor.fetchall()
+        return data
+
+    def get_unixtime_price_for_url(self, url: str):
+        """Get unixtime and price for rows matching URL.
+
+        Arguments:
+            url:str -- URL entry in db, used to search for rows
+        """
+        self.cursor.execute(
+            "SELECT unix, price FROM amazon WHERE url = ?", (url,)
+        )
+        data = self.cursor.fetchall()
+        return data
+
+    def get_row_count(self) -> int:
+        """Get number of rows.
+
+        Return:
+            int -- number of rows in table pointed to by cursor
+        """
+        self.cursor.execute("SELECT COUNT(*) AS count FROM amazon")
+        data = self.cursor.fetchall()  # e.g [(18,)]
+        return data[0][0]
+
+    def delete_rows_for_url(self, url: str):
+        """Delete rows matching URL.
+
+        Arguments:
+            url:str -- URL entry in db, used to delete rows
+        """
+        # Set url to deleted
+        self.cursor.execute("DELETE FROM amazon WHERE url = ?", (url,))
+        self.cursor.connection.commit()
+
+    def value_already_exists(self, url: str) -> bool:
+        """Determine if the product already exists."""
+        self.cursor.execute("SELECT id FROM amazon WHERE url= ?", (url,))
+        return self.cursor.fetchone()  # True if one is found
+
+
+################################################################
+# Class ProductWindow
+################################################################
+
+
+class ProductWindow(QMainWindow):
+    """Handle GUI for Amazon price tracking."""
+
+    # class variables here, use only when required
+
+    def __init__(self, args: argparse.Namespace, db: ProductDatabase):
+        """Initialize the class methods and instance variables.
+
+        Arguments:
+            args: argparse.Namespace -- arguments from argparse
+            db: ProductDatabase -- sqlite3 database object
+        """
+        super(ProductWindow, self).__init__()
+        self.new_vars(args, db)  # sets instance variables
         self.setGeometry(1000, 1600, 900, 900)
         self.setWindowTitle("Track Amazon products")
         self.init_ui()
         self.update_current_data_value()
         self.init_labels()  # requires cursor set
 
-    def init_db(self, cursor: sqlite3.Cursor):
-        """Initialize database."""
-        # nothing to do, this created the table, but moved to main
-        # unnecessary as done in main, just in case code movess around
-        create_table(cursor)
-
-    def new_vars(self, args: argparse.Namespace, cursor: sqlite3.Cursor):
+    def new_vars(self, args: argparse.Namespace, db: ProductDatabase):
         """Create and initialize instance variables."""
+        self.args = args
+        self.db = db
+        self.cursor = db.cursor  # sqlite3 db cursor
+        # we can get the sqlite3 connection from cursor: cursor.connection
         self.height = 140
         self.width = 30
         self.WIDTH_CLOSE_BUTTON = 600
         self.WIDTH_LINK_BUTTON = 635
         self.WIDTH_GRAPH_BUTTON = 670
-        self.data = get_one_from_each_url(cursor)
-        self.args = args
+        self.data = self.db.get_one_from_each_url()
         # self.icon = "/home/a/"
         # self.error_message = ERROR_MSG_429
-        self.cursor = cursor  # sqlite3 db cursor
-        # we can get the sqlite3 connection from cursor: cursor.connection
 
     def init_ui(self):
         """Perform initial GUI setup."""
@@ -108,23 +228,15 @@ class product_window(QMainWindow):
 
     def shorten_url(self, url: str) -> str:
         """Shorten the URL to the product name."""
-        split_url = url.split("/")
-        if split_url[3] == "dp":
-            return get_product_name(url)
-        else:
-            return split_url[3]
-
-    def convert_price_in_str(self, price: str) -> int:
-        """Convert the price string into and integer."""
         try:
-            price_int = price.replace(",", ".")
-            price_int = float(price_int)
-            return price_int
-        except ValueError as e:
-            logging.debug(
-                f"convert_price_in_str:: failed to convert price: {e}"
-            )
-            return 0
+            split_url = url.split("/")
+            if split_url[3] == "dp":  # index 3 might not exist
+                return get_product_name(url)
+            else:
+                return split_url[3]
+        except Exception as e:
+            logging.info(f"shorten_url:: exception occurred: {e}")
+            return get_product_name(url)
 
     def init_labels(self):
         """Initialize labels."""
@@ -135,7 +247,7 @@ class product_window(QMainWindow):
         self.products_index = 0
         self.PRODUCTS_SPACE_DIFFERENCE = 50
         logging.debug(f"init_labels:: {self.data}")
-        data = get_one_from_each_url(self.cursor)
+        data = self.db.get_one_from_each_url()
         self.add_label(data)
 
     def add_label(self, newData):
@@ -145,7 +257,7 @@ class product_window(QMainWindow):
         for row in newData:
             url = row[0]
             price = row[1]
-            last_data = get_last_data(self.cursor, url)
+            last_data = self.db.get_last_data(url)
             try:
                 # TODO: this is still old. fix it, and try to not have to
                 # use the price into int only once and save it like an int in
@@ -197,11 +309,6 @@ class product_window(QMainWindow):
             self.height += self.PRODUCTS_SPACE_DIFFERENCE
             self.products_index += 1
 
-    def copy_link(self, url: str):
-        """Set the copy buffer to product url on link_button pressed."""
-        pyperclip.copy(url)
-        logging.debug(f"copy_link:: copied URL {url} to clipboard.")
-
     def create_new_label(self, url, price):
         """Create a new label."""
         short_url = self.shorten_url(url)
@@ -240,7 +347,7 @@ class product_window(QMainWindow):
         link_button = QtWidgets.QPushButton(self)
         # copy © icon, link 🔗 ⛓ url unicode
         link_button.setText("🔗")
-        copy_link = partial(self.copy_link, url)
+        copy_link = partial(copy_link_to_clipboard, url)
         link_button.setGeometry(self.WIDTH_LINK_BUTTON, self.height, 30, 25)
         link_button.clicked.connect(copy_link)
         return link_button
@@ -279,9 +386,7 @@ class product_window(QMainWindow):
         graph_button.hide()
         label.hide()
 
-        # Set url to deleted
-        self.cursor.execute("DELETE FROM amazon WHERE url = ?", (url,))
-        self.cursor.connection.commit()
+        self.db.delete_rows_for_url(url)
         self.replace_products(index)
 
     def replace_products(self, product_index: int):
@@ -317,10 +422,7 @@ class product_window(QMainWindow):
 
     def show_product_price_graph(self, url):
         """Show a graph of the products price passed through the argument."""
-        self.cursor.execute(
-            "SELECT unix, price FROM amazon WHERE url = ?", (url,)
-        )
-        data = self.cursor.fetchall()
+        data = self.db.get_unixtime_price_for_url(url)
         # do not use strings with plot, use float and datetime
         dates_datetime = []
         prices_float = []
@@ -338,51 +440,20 @@ class product_window(QMainWindow):
         if url is None or url == "":
             logging.debug("new_value: empty URL ignored.")
             return
-        value_exists = self.value_already_exists(url)
+        value_exists = self.db.value_already_exists(url)
         if not value_exists:
             price = str(get_price(self.args, url))
             if price != ERROR_MSG_429:
                 values = [(url, price)]
-                self.add_item_to_db(url, price)
+                self.db.add_item_to_db(url, price)
                 self.add_label(values)
                 logging.debug(f"new_value: product for {url} added.")
         else:
             # already exists, but update the price
             price = str(get_price(self.args, url))
             if price != ERROR_MSG_429:
-                self.add_item_to_db(url, price)
+                self.db.add_item_to_db(url, price)
                 logging.debug(f"new_value: product price for {url} updated.")
-
-    def add_item_to_db(self, url: str, price: str):
-        """Add a new product to the database."""
-        unix = time.time()
-        date = str(
-            datetime.datetime.fromtimestamp(unix).strftime(
-                "%Y-%m-%-d %H:%M:%S"
-            )
-        )
-        self.cursor.execute(
-            "INSERT INTO amazon (url, price, datestamp, unix)"
-            "VALUES(?, ?, ?, ?)",
-            (url, price, date, unix),
-        )
-        self.cursor.connection.commit()
-        logging.debug(f"add_item_to_db: product for {url} added to db.")
-
-    def value_already_exists(self, url: str) -> bool:
-        """Determine if the product already exists."""
-        self.cursor.execute("SELECT id FROM amazon WHERE url= ?", (url,))
-        return self.cursor.fetchone()  # True if one is found
-
-    def which_is_more_expensive(self, price1: str, price2: str) -> int:
-        """Determine which is more expensive from the arguments."""
-        price1 = self.convert_price_in_str(price1)
-        price2 = self.convert_price_in_str(price2)
-        if price1 > price2:
-            return 1  # If price1 is bigger return 1
-        elif price1 < price2:
-            return -1  # If price2 is bigger return -1
-        return 0
 
     def update_current_data_value(self):
         """Check products in self.data if the price is correct."""
@@ -391,74 +462,41 @@ class product_window(QMainWindow):
             url = row[0]
             price = get_price(self.args, url)
             if price != ERROR_MSG_429:
-                self.add_item_to_db(url, price)
-
+                self.db.add_item_to_db(url, price)
         # self.save_data()
 
 
-def create_table(cursor: sqlite3.Cursor):
-    """Create table iff does not exist.
-
-    Arguments:
-        cursor:sqlite3.Cursor -- valid database cursor):
-    """
-    cursor.execute(
-        "CREATE TABLE IF NOT EXISTS amazon(url TEXT, price TEXT, "
-        "datestamp TEXT, unix REAL, id INTEGER PRIMARY KEY AUTOINCREMENT)"
-    )
-    cursor.connection.commit()
+################################################################
+# Regular functions
+################################################################
 
 
-def get_last_data(cursor: sqlite3.Cursor, url: str):
-    """Get the last 2 rows.
-
-    Arguments:
-        cursor:sqlite3.Cursor -- valid database cursor
-        url:str -- URL entry in db, used to search for rows
-    """
-    cursor.execute(
-        "SELECT price FROM amazon WHERE url = ? ORDER BY unix DESC LIMIT 2",
-        (url,),
-    )
-    data = cursor.fetchall()
-    return data[0]
+def which_is_more_expensive(price1: str, price2: str) -> int:
+    """Determine which is more expensive from the arguments."""
+    price1 = convert_price_in_str(price1)
+    price2 = convert_price_in_str(price2)
+    if price1 > price2:
+        return 1  # If price1 is bigger return 1
+    elif price1 < price2:
+        return -1  # If price2 is bigger return -1
+    return 0
 
 
-def get_one_from_each_url(cursor: sqlite3.Cursor):
-    """Get one row for each URL.
-
-    Arguments:
-        cursor:sqlite3.Cursor -- valid database cursor
-    """
-    cursor.execute(
-        "SELECT url, price, id FROM amazon GROUP BY url ORDER BY Id ASC"
-    )
-    data = cursor.fetchall()
-    return data
+def copy_link_to_clipboard(url: str):
+    """Set the copy buffer to product url on link_button pressed."""
+    pyperclip.copy(url)
+    logging.debug(f"copy_link_to_clipboard:: copied URL {url} to clipboard.")
 
 
-def get_all_rows(cursor: sqlite3.Cursor):
-    """Get all rows.
-
-    Arguments:
-        cursor:sqlite3.Cursor -- valid database cursor
-    """
-    cursor.execute("SELECT url, price, id FROM amazon ORDER BY Id ASC")
-    data = cursor.fetchall()
-    return data
-
-
-def get_row_count(cursor: sqlite3.Cursor) -> int:
-    """Get number of rows.
-
-    Arguments:
-        cursor:sqlite3.Cursor -- valid database cursor
-    Return:
-        int -- number of rows in table pointed to by cursor
-    """
-    cursor.execute("SELECT COUNT(*) AS count FROM amazon")
-    data = cursor.fetchall()  # e.g [(18,)]
-    return data[0][0]
+def convert_price_in_str(price: str) -> int:
+    """Convert the price string into and integer."""
+    try:
+        price_int = price.replace(",", ".")
+        price_int = float(price_int)
+        return price_int
+    except ValueError as e:
+        logging.debug(f"convert_price_in_str:: failed to convert price: {e}")
+        return 0
 
 
 def get_price(args, url: str) -> str:
@@ -485,11 +523,11 @@ def get_price(args, url: str) -> str:
         tag = tag[0 : len(tag) - 2]  # noqa
         logging.debug(f"get_price:: tag is {tag}")
     except urllib.request.HTTPError as e:
-        logging.debug(f"get_price:: exception ocurred: {e}")
+        logging.debug(f"get_price:: exception occurred: {e}")
         logging.debug("get_price:: Looks like Amazon responded with an error.")
         tag = ERROR_MSG_429
     except Exception as e:
-        logging.debug(f"get_price:: exception ocurred: {e}")
+        logging.debug(f"get_price:: exception occurred: {e}")
         logging.debug("get_price:: Did you enter a valid URL?")
         tag = ERROR_MSG_429
     return tag
@@ -512,7 +550,14 @@ def get_product_name(url: str) -> str:
         logging.debug(f"get_product_name:: tag is {tag}")
         tag = tag[8]
     except urllib.request.HTTPError as e:
-        logging.debug(f"get_product_name:: exception ocurred: {e}")
+        logging.debug(f"get_product_name:: exception occurred: {e}")
+        tag = url
+    except Exception as e:
+        logging.debug(f"get_product_name:: exception occurred: {e}")
+        logging.debug(
+            "get_product_name:: Looks like there "
+            f"is an invalid URL {url} in database?"
+        )
         tag = url
     if len(tag) > MAX_PRODUCT_NAME_LENGTH:
         return f"{tag[0:MAX_PRODUCT_NAME_LENGTH]}..."
@@ -592,37 +637,28 @@ def init() -> argparse.Namespace:
     return args
 
 
-def window(args: argparse.Namespace, cursor: sqlite3.Cursor) -> int:
+def window(args: argparse.Namespace, db: ProductDatabase) -> int:
     """Create the window and go into event loop.
 
     Arguments:
         argparse.Namespace -- namespace with all arguments from argparse
-        cursor:sqlite3.Cursor -- valid database cursor
+        db: ProductDatabase -- sqlite3 database object
     Return:
         int -- return code from QApplication app
     """
     app = QApplication([])
-    win = product_window(args, cursor)
+    win = ProductWindow(args, db)
     win.show()
-    ret = app.exec()
+    ret = app.exec()  # enter event loop
     return ret
 
 
 def main():
     """Track Amazon prices."""
     args = init()
-    connection = sqlite3.connect(args.database.name)
-    cursor = connection.cursor()
-    create_table(cursor)
-    logging.debug(f"main:: db contains {get_row_count(cursor)} rows")
-    logging.debug(f"main:: db contains these rows: {get_all_rows(cursor)}")
-    ret = window(args, cursor)
-    logging.debug("main:: closing down database.")
-    connection.commit()
-    logging.debug(f"main:: db contains {get_row_count(cursor)} rows")
-    logging.debug(f"main:: db contains these rows: {get_all_rows(cursor)}")
-    cursor.close()
-    connection.close()
+    db = ProductDatabase(args, args.database.name)
+    ret = window(args, db)
+    db.close()
     logging.debug(f"main:: exiting with code {ret}.")
     sys.exit(ret)
 
