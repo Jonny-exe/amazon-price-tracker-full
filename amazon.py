@@ -504,7 +504,7 @@ def get_price(args, url: str) -> str:
     if args.fake_prices:
         random_price = str(random.randint(10, 100))
         logging.debug(
-            f"get_price:: faking price {random_price}. " "Avoid URL scraping."
+            f"get_price:: faking price {random_price}. Avoid URL scraping."
         )
         return random_price
     try:
@@ -534,7 +534,7 @@ def get_price(args, url: str) -> str:
 
 
 def get_product_name(url: str) -> str:
-    """Get the product name for the url passed in the arg.
+    """Get the product name for a given URL via web scraping.
 
     Arguments:
         url:str -- Amazon product URL
@@ -552,11 +552,11 @@ def get_product_name(url: str) -> str:
     except urllib.request.HTTPError as e:
         logging.debug(f"get_product_name:: exception occurred: {e}")
         tag = url
-    except Exception as e:
+    except Exception as e:  # handle the rest of the possible errors
         logging.debug(f"get_product_name:: exception occurred: {e}")
         logging.debug(
             "get_product_name:: Looks like there "
-            f"is an invalid URL {url} in database?"
+            f"is an invalid URL {url} in the database?"
         )
         tag = url
     if len(tag) > MAX_PRODUCT_NAME_LENGTH:
