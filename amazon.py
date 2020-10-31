@@ -1,8 +1,11 @@
 #!/usr/bin/python3
-"""Do the necessary imports."""
+"""Track prices of Amazon products over time."""
+
+# Imports, sorted by isort
 import argparse
 import datetime
 import logging
+import random
 import signal
 import sqlite3
 import sys
@@ -11,44 +14,68 @@ import urllib.request
 from functools import partial
 
 import bs4 as bs
-import matplotlib.dates as mdates
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plot
 import pyperclip
 from PyQt5 import QtWidgets
 from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import QApplication, QMainWindow
 
-conn = sqlite3.connect('amazon.db')
-c = conn.cursor()
+# Global Constants
+DEFAULT_DB_FILENAME = "amazon.db"
+MAX_PRODUCT_NAME_LENGTH = 30  # max length for display
+# HTTP error code 429 ... Too Many Requests
+# ERROR_MSG_429 = "Too many requests, try again in 15 mins"
+ERROR_MSG_429 = "Price unavailable."
+
+# Global Variables
+# avoid them if possible
+# example_global_var = 12
 
 
-class my_window(QMainWindow):
+# Classes
+
+
+class product_window(QMainWindow):
     """Handle GUI for Amazon price tracking."""
 
-    def __init__(self):
-        """Initialize the class functions."""
-        super(my_window, self).__init__()
-        self.new_vars()
+    # class variables here, use only when required
+
+    def __init__(self, args: argparse.Namespace, cursor: sqlite3.Cursor):
+        """Initialize the class methods and instance variables.
+
+        Arguments:
+            args: argparse.Namespace -- arguments from argparse
+            cursor:sqlite3.Cursor -- valid database cursor
+        """
+        super(product_window, self).__init__()
+        self.init_db(cursor)  # before new_vars()
+        self.new_vars(args, cursor)  # sets instance variables
         self.setGeometry(1000, 1600, 900, 900)
-        self.setWindowTitle("Track amazon products")
+        self.setWindowTitle("Track Amazon products")
         self.init_ui()
         self.update_current_data_value()
-        self.init_labels()
+        self.init_labels()  # requires cursor set
 
-    def new_vars(self):
-        """Set initial vars."""
+    def init_db(self, cursor: sqlite3.Cursor):
+        """Initialize database."""
+        # nothing to do, this created the table, but moved to main
+
+    def new_vars(self, args: argparse.Namespace, cursor: sqlite3.Cursor):
+        """Create and initialize instance variables."""
         self.height = 140
         self.width = 30
         self.WIDTH_CLOSE_BUTTON = 600
         self.WIDTH_LINK_BUTTON = 635
         self.WIDTH_GRAPH_BUTTON = 670
-        self.data = get_one_from_each_url()
-        # self.args = args
-        self.icon = "/home/a/"
-        self.error_message = "Too many requests, try again in 15 mins"
+        self.data = get_one_from_each_url(cursor)
+        self.args = args
+        # self.icon = "/home/a/"
+        # self.error_message = ERROR_MSG_429
+        self.cursor = cursor  # sqlite3 db cursor
+        # we can get the sqlite3 connection from cursor: cursor.connection
 
     def init_ui(self):
-        """Perform initial setup."""
+        """Perform initial GUI setup."""
         height = 50
 
         # Create main label
@@ -73,8 +100,8 @@ class my_window(QMainWindow):
         self.input.resize(600, 30)
 
     def main_button_clicked(self):
-        """Do the action after the add products button is clicked."""
-        url = self.input.text()
+        """Perform action after "add product" button is clicked."""
+        url = self.input.text().strip()  # remove white spaces
         self.new_value(url)
 
     def shorten_url(self, url: str) -> str:
@@ -85,15 +112,17 @@ class my_window(QMainWindow):
         else:
             return split_url[3]
 
-    def convert_price_in_str(price: str) -> int:
+    def convert_price_in_str(self, price: str) -> int:
         """Convert the price string into and integer."""
-        # I think should work without a self argument
         try:
             price_int = price.replace(",", ".")
             price_int = float(price_int)
             return price_int
-        except ValueError:
-            return 9999
+        except ValueError as e:
+            logging.debug(
+                f"convert_price_in_str:: failed to convert price: {e}"
+            )
+            return 0
 
     def init_labels(self):
         """Initialize labels."""
@@ -104,7 +133,7 @@ class my_window(QMainWindow):
         self.products_index = 0
         self.PRODUCTS_SPACE_DIFFERENCE = 50
         logging.debug(f"init_labels:: {self.data}")
-        data = get_one_from_each_url()
+        data = get_one_from_each_url(self.cursor)
         self.add_label(data)
 
     def add_label(self, newData):
@@ -114,21 +143,15 @@ class my_window(QMainWindow):
         for row in newData:
             url = row[0]
             price = row[1]
-            last_data = get_last_data(url)
+            last_data = get_last_data(self.cursor, url)
             try:
-                # This may fail
-                print("hihi")
-                # TODO: this is still old fix it, and try to not have to
-                # use the price into int only once and save it like and int in
+                # TODO: this is still old. fix it, and try to not have to
+                # use the price into int only once and save it like an int in
                 # the db
                 if url in newData:
-                    bigger = self.which_is_more_expensive(
-                        price, last_data[1]
-                    )
+                    bigger = self.which_is_more_expensive(price, last_data[1])
                     logging.debug(f"add_label:: Which is bigger {bigger}")
-                    logging.debug(
-                        f"add_label:: {last_data[0]} vs {row[0]}"
-                    )
+                    logging.debug(f"add_label:: {last_data[0]} vs {row[0]}")
                 else:
                     bigger = 0
             except ValueError:  # catch *all* exceptions
@@ -160,7 +183,8 @@ class my_window(QMainWindow):
 
             # Create the close button
             close_button = self.create_new_close_button(
-                url, new_label, link_button, graph_button)
+                url, new_label, link_button, graph_button
+            )
             self.close_buttons.append(close_button)
 
             # Show the made items and increase iterators
@@ -174,6 +198,7 @@ class my_window(QMainWindow):
     def copy_link(self, url: str):
         """Set the copy buffer to product url on link_button pressed."""
         pyperclip.copy(url)
+        logging.debug(f"copy_link:: copied URL {url} to clipboard.")
 
     def create_new_label(self, url, price):
         """Create a new label."""
@@ -181,18 +206,19 @@ class my_window(QMainWindow):
 
         new_label = QtWidgets.QLabel(self)
         new_label.setText(
-            f"Product {(self.products_index+1)}: "
-            f"{price}€\n{short_url}"
+            f"Product {(self.products_index+1)}: {price}€\n{short_url}"
         )
         new_label.move(self.width, self.height)
         new_label.adjustSize()
         return new_label
 
-    def create_new_close_button(self, url: str, new_label, link_button,
-                                graph_button):
+    def create_new_close_button(
+        self, url: str, new_label, link_button, graph_button
+    ):
         """Create a new close button."""
         close_button = QtWidgets.QPushButton(self)
-        close_button.setText("⨉")
+        # remove icon ⨉ ✖ ❌, unicode
+        close_button.setText("❌")
         remove_function = partial(
             self.remove_products,
             new_label,
@@ -203,47 +229,47 @@ class my_window(QMainWindow):
             False,
             url,
         )
-        close_button.setGeometry(self.WIDTH_CLOSE_BUTTON,
-                                 self.height, 30, 25)
+        close_button.setGeometry(self.WIDTH_CLOSE_BUTTON, self.height, 30, 25)
         close_button.clicked.connect(remove_function)
         return close_button
 
     def create_new_link_button(self, url: str):
         """Create a new link button."""
         link_button = QtWidgets.QPushButton(self)
-        link_button.setText("©")
-        copy_link = partial(
-            self.copy_link,
-            url,
-        )
-        link_button.setGeometry(self.WIDTH_LINK_BUTTON,
-                                self.height, 30, 25)
+        # copy © icon, link 🔗 ⛓ url unicode
+        link_button.setText("🔗")
+        copy_link = partial(self.copy_link, url)
+        link_button.setGeometry(self.WIDTH_LINK_BUTTON, self.height, 30, 25)
         link_button.clicked.connect(copy_link)
         return link_button
 
     def create_new_graph_button(self, url):
         """Create a new show graph button."""
         graph_button = QtWidgets.QPushButton(self)
-        graph_button.setText("⇵")
-        show_product_price_graph = partial(
-            self.show_product_price_graph,
-            url,
-        )
-        graph_button.setGeometry(self.WIDTH_GRAPH_BUTTON,
-                                 self.height, 30, 25)
+        # graph ⇵, chart icon 💹, chart 📉 📈 unicode
+        graph_button.setText("📉")
+        show_product_price_graph = partial(self.show_product_price_graph, url)
+        graph_button.setGeometry(self.WIDTH_GRAPH_BUTTON, self.height, 30, 25)
         graph_button.clicked.connect(show_product_price_graph)
         return graph_button
 
-    def remove_products(self, label, close_button, link_button, graph_button,
-                        index: int, checked: bool, url: str):
+    def remove_products(
+        self,
+        label,
+        close_button,
+        link_button,
+        graph_button,
+        index: int,
+        checked: bool,
+        url: str,
+    ):
         """Remove products when the x close_button is pressed."""
-        logging.debug(f"remove_products:: {self}")
         logging.debug(
-            f"self: {self}, close_button: {type(close_button)} \
-            {close_button}, index: {index},",
-            f"checked: {type(checked)}",
+            f"remove_products:: self: {self}, "
+            f"close_button: {type(close_button)} {close_button}, "
+            f"index: {index}, checked: {type(checked)}, "
+            f"remove_products:: winid is {close_button.winId()}"
         )
-        logging.debug(f"winid is {close_button.winId()}")
 
         # Hiding and removing the label and the close_button
         link_button.hide()
@@ -252,15 +278,12 @@ class my_window(QMainWindow):
         label.hide()
 
         # Set url to deleted
-        c.execute("DELETE FROM amazon WHERE url = ?", (url,))
-        conn.commit()
+        self.cursor.execute("DELETE FROM amazon WHERE url = ?", (url,))
+        self.cursor.connection.commit()
         self.replace_products(index)
 
     def replace_products(self, product_index: int):
         """Replace the products in the correct spot."""
-        logging.debug(
-            "replace_products:: prodecuts where replaced"
-        )
         for index in range(product_index, len(self.products)):
             label = self.products[index]
             close_button = self.close_buttons[index]
@@ -273,128 +296,164 @@ class my_window(QMainWindow):
             self.height -= self.PRODUCTS_SPACE_DIFFERENCE
 
             label.move(
-                self.width, y_pos_label - self.PRODUCTS_SPACE_DIFFERENCE)
+                self.width, y_pos_label - self.PRODUCTS_SPACE_DIFFERENCE
+            )
 
             close_button.move(
-                self.WIDTH_CLOSE_BUTTON, y_pos_button -
-                self.PRODUCTS_SPACE_DIFFERENCE
+                self.WIDTH_CLOSE_BUTTON,
+                y_pos_button - self.PRODUCTS_SPACE_DIFFERENCE,
             )
             link_button.move(
-                self.WIDTH_LINK_BUTTON, y_pos_button -
-                self.PRODUCTS_SPACE_DIFFERENCE
+                self.WIDTH_LINK_BUTTON,
+                y_pos_button - self.PRODUCTS_SPACE_DIFFERENCE,
             )
             graph_button.move(
-                self.WIDTH_GRAPH_BUTTON, y_pos_button -
-                self.PRODUCTS_SPACE_DIFFERENCE
+                self.WIDTH_GRAPH_BUTTON,
+                y_pos_button - self.PRODUCTS_SPACE_DIFFERENCE,
             )
+        logging.debug("replace_products:: products were replaced")
 
     def show_product_price_graph(self, url):
         """Show a graph of the products price passed through the argument."""
-        c.execute('SELECT unix, price FROM amazon WHERE url = ?', (url,))
-        data = c.fetchall()
-
-        dates = []
-        values = []
+        self.cursor.execute(
+            "SELECT unix, price FROM amazon WHERE url = ?", (url,)
+        )
+        data = self.cursor.fetchall()
+        # do not use strings with plot, use float and datetime
+        dates_datetime = []
+        prices_float = []
 
         for row in data:
-            dates.append(datetime.datetime.fromtimestamp(row[0]))
-            values.append(row[1])
+            dates_datetime.append(datetime.datetime.fromtimestamp(row[0]))
+            prices_float.append(float(row[1]))
 
-        plt.plot_date(dates, values, '-')
-        plt.show()
+        # already set logger level to INFO in init() to avoid spam
+        plot.plot_date(dates_datetime, prices_float, "-")
+        plot.show()
 
     def new_value(self, url: str):
-        """Handle new value after the add product button is pressed."""
+        """Handle new product after the add product button is pressed."""
+        if url is None or url == "":
+            logging.debug("new_value: empty URL ignored.")
+            return
         value_exists = self.value_already_exists(url)
         if not value_exists:
-            price = str(get_price(url))
-            values = [(url, price)]
-            self.add_item_to_db(url, price)
-            self.add_label(values)
+            price = str(get_price(self.args, url))
+            if price != ERROR_MSG_429:
+                values = [(url, price)]
+                self.add_item_to_db(url, price)
+                self.add_label(values)
+                logging.debug(f"new_value: product for {url} added.")
+        else:
+            # already exists, but update the price
+            price = str(get_price(self.args, url))
+            if price != ERROR_MSG_429:
+                self.add_item_to_db(url, price)
+                logging.debug(f"new_value: product price for {url} updated.")
 
     def add_item_to_db(self, url: str, price: str):
-        """Add a new value to the Db."""
+        """Add a new product to the database."""
         unix = time.time()
-        date = str(datetime.datetime.fromtimestamp(unix).strftime(
-            '%Y-%m-%-d %H: %M: %S'))
-        c.execute("INSERT INTO amazon (url, price, datestamp, unix)"
-                  "VALUES(?, ?, ?, ?)",
-                  (url, price, date, unix))
-        conn.commit()
+        date = str(
+            datetime.datetime.fromtimestamp(unix).strftime(
+                "%Y-%m-%-d %H:%M:%S"
+            )
+        )
+        self.cursor.execute(
+            "INSERT INTO amazon (url, price, datestamp, unix)"
+            "VALUES(?, ?, ?, ?)",
+            (url, price, date, unix),
+        )
+        self.cursor.connection.commit()
+        logging.debug(f"add_item_to_db: product for {url} added to db.")
 
     def value_already_exists(self, url: str) -> bool:
-        """Determine if the value already exists."""
-        c.execute("SELECT id FROM amazon WHERE url= ?",
-                  (url,)
-                  )
-        data = c.fetchone()
-        if data:
-            return True
-        return False
+        """Determine if the product already exists."""
+        self.cursor.execute("SELECT id FROM amazon WHERE url= ?", (url,))
+        return self.cursor.fetchone()  # True if one is found
 
     def which_is_more_expensive(self, price1: str, price2: str) -> int:
         """Determine which is more expensive from the arguments."""
-        print(type(price1))
         price1 = self.convert_price_in_str(price1)
         price2 = self.convert_price_in_str(price2)
         if price1 > price2:
-            # If prize1 is bigger return 1
-            return 1
+            return 1  # If price1 is bigger return 1
         elif price1 < price2:
-            # If prize2 is bigger return -1
-            return -1
+            return -1  # If price2 is bigger return -1
         return 0
 
     def update_current_data_value(self):
-        """Check the products in data if the price is correct."""
+        """Check products in self.data if the price is correct."""
         data_copy = self.data.copy()
         for row in data_copy:
             url = row[0]
-            price = row[1]
-            price = get_price(url)
-            if price != self.error_message:
+            price = get_price(self.args, url)
+            if price != ERROR_MSG_429:
                 self.add_item_to_db(url, price)
 
         # self.save_data()
 
 
-def window():
-    """Create the window and go into event loop."""
-    app = QApplication([])
-    # win = my_window(args)
-    win = my_window()
-    win.show()
-    sys.exit(app.exec())
+def create_table(cursor: sqlite3.Cursor):
+    """Create table iff does not exist.
 
-
-def create_table():
-    """Do creates a table."""
-    c.execute(
-        'CREATE TABLE IF NOT EXISTS amazon(url TEXT, price TEXT,\
-        datestamp TEXT, unix REAL, id INTEGER PRIMARY KEY AUTOINCREMENT)'
+    Arguments:
+        cursor:sqlite3.Cursor -- valid database cursor):
+    """
+    cursor.execute(
+        "CREATE TABLE IF NOT EXISTS amazon(url TEXT, price TEXT, "
+        "datestamp TEXT, unix REAL, id INTEGER PRIMARY KEY AUTOINCREMENT)"
     )
+    cursor.connection.commit()
 
 
-def get_last_data(url):
-    """Get the second last data."""
-    c.execute("SELECT price FROM amazon WHERE url = ?\
-     ORDER BY unix DESC LIMIT 2",
-              (url,))
-    data = c.fetchall()
+def get_last_data(cursor: sqlite3.Cursor, url: str):
+    """Get the last 2 rows.
+
+    Arguments:
+        cursor:sqlite3.Cursor -- valid database cursor
+        url:str -- URL entry in db, used to search for rows
+    """
+    cursor.execute(
+        "SELECT price FROM amazon WHERE url = ? ORDER BY unix DESC LIMIT 2",
+        (url,),
+    )
+    data = cursor.fetchall()
     return data[0]
 
 
-def get_one_from_each_url():
-    """Get one from each url."""
-    c.execute("SELECT url, price, id FROM amazon GROUP BY url\
-            ORDER BY Id ASC")
-    data = c.fetchall()
+def get_one_from_each_url(cursor: sqlite3.Cursor):
+    """Get one row for each URL.
+
+    Arguments:
+        cursor:sqlite3.Cursor -- valid database cursor
+    """
+    cursor.execute(
+        "SELECT url, price, id FROM amazon GROUP BY url ORDER BY Id ASC"
+    )
+    data = cursor.fetchall()
     return data
 
 
-def get_price(url: str) -> str:
+def get_all(cursor: sqlite3.Cursor):
+    """Get all rows.
+
+    Arguments:
+        cursor:sqlite3.Cursor -- valid database cursor
+    """
+    cursor.execute("SELECT url, price, id FROM amazon ORDER BY Id ASC")
+    data = cursor.fetchall()
+    return data
+
+
+def get_price(args, url: str) -> str:
     """Get price for the url that is passed as an argument."""
-    print(url, type(url))
+    if args.fake_prices:
+        random_price = str(random.randint(10, 100))
+        logging.debug(
+            f"get_price:: faking price {random_price}. " "Avoid URL scraping."
+        )
+        return random_price
     try:
         sauce = urllib.request.urlopen(url)
         soup = bs.BeautifulSoup(sauce, "lxml")
@@ -406,44 +465,55 @@ def get_price(url: str) -> str:
                 search = soup.find("span", {"id": "priceblock_ourprice"})
                 tag = search.text
             except AttributeError:
-                tag = "Not available"
+                tag = "Not available "
 
-        # pylama:ignore=E203
-        tag = tag[0: len(tag) - 2]
-        logging.debug(tag)
-    except urllib.request.HTTPError:
-        logging.debug("except ocurred")
-        tag = "Too many requests, try again in 15 mins"
+        tag = tag[0 : len(tag) - 2]  # noqa
+        logging.debug(f"get_price:: tag is {tag}")
+    except urllib.request.HTTPError as e:
+        logging.debug(f"get_price:: exception ocurred: {e}")
+        logging.debug("get_price:: Looks like Amazon responded with an error.")
+        tag = ERROR_MSG_429
+    except Exception as e:
+        logging.debug(f"get_price:: exception ocurred: {e}")
+        logging.debug("get_price:: Did you enter a valid URL?")
+        tag = ERROR_MSG_429
     return tag
 
 
 def get_product_name(url: str) -> str:
-    """Get the product name for the url passed in the arg."""
+    """Get the product name for the url passed in the arg.
+
+    Arguments:
+        url:str -- Amazon product URL
+    Return:
+        str -- product name
+    """
     try:
         sauce = urllib.request.urlopen(url)
         soup = bs.BeautifulSoup(sauce, "lxml")
         search = soup.find("span", {"id": "productTitle"})
         tag = search.text
-        tag = tag.split('\n')
-        # pylama:ignore=E203
-        logging.debug(tag)
+        tag = tag.split("\n")
+        logging.debug(f"get_product_name:: tag is {tag}")
         tag = tag[8]
-    except urllib.request.HTTPError:
-        logging.debug("except ocurred")
+    except urllib.request.HTTPError as e:
+        logging.debug(f"get_product_name:: exception ocurred: {e}")
         tag = url
-    if len(tag) > 30:
-        return f"{tag[0:30]}..."
+    if len(tag) > MAX_PRODUCT_NAME_LENGTH:
+        return f"{tag[0:MAX_PRODUCT_NAME_LENGTH]}..."
     return tag
 
 
-def init() -> argparse.Namespace:
-    """Initialize the program.
+def init_args() -> argparse.Namespace:
+    """Initialize the arguments.
 
-    Process argument and open file.
+    Return:
+        argparse.Namespace -- namespace with all arguments
     """
+    # argparse
     signal.signal(signal.SIGINT, signal.SIG_DFL)
-    # Argparse
-    parser = argparse.ArgumentParser(description="Track amazon prices")
+    # argparse
+    parser = argparse.ArgumentParser(description="Track Amazon prices")
     parser.add_argument(
         "-d",
         "--debug",
@@ -451,38 +521,97 @@ def init() -> argparse.Namespace:
         action="store_true",
         help="Turn debug on",
     )
-    # parser.add_argument(
-    #     "-f",
-    #     "--file",
-    #     # r...read, w...write, +...update(read and write),
-    #     # t...text mode, b...binary
-    #     # see: https://docs.python.org/3/library/functions.html#open
-    #     type=argparse.FileType("r+"),
-    #     default=filenameDefault,
-    #     # const=filenameDefault,
-    #     # nargs="?",
-    #     help="file for product listings",
-    # )
-    # args = parser.parse_args()
-    # if args.debug:
-    #     logging.basicConfig(level=logging.DEBUG)
-    # else:
-    #     logging.basicConfig(level=logging.INFO)
-    # logging.debug(f"init:: args is set to: {args}")
-    # logging.debug(f"init:: debug is set to: {args.debug}")
-    # logging.debug(f"init:: file is set to: {args.file.name}")
-    create_table()
-    # get the file content jsonData = ast.literal_eval(args.file.read())
-    # logging.debug(f"init:: Initial state of file is: {jsonData}.")
-    # return args
+    parser.add_argument(
+        "-f",
+        "--fake-prices",
+        default=False,
+        action="store_true",
+        help="Fake random prices instead of scraping them from Amazon",
+    )
+    parser.add_argument(
+        "-db",
+        "--database",
+        # r...read, w...write, +...update(read and write),
+        # t...text mode, b...binary
+        # w ... create if not existing, overwrite if existing
+        # r+ ... do not create if not existing but give warning
+        # a ... open for writing, appending to the end of the file if it exists
+        #       create if not existing,
+        #       do not overwrite (but append) if existing
+        # see: https://docs.python.org/3/library/functions.html#open
+        type=argparse.FileType("a"),
+        default=DEFAULT_DB_FILENAME,
+        # const=DEFAULT_DB_FILENAME,
+        # nargs="?",
+        help="Path and name of sqlite3 database file. "
+        f"Default is {DEFAULT_DB_FILENAME}.",
+    )
+    args = parser.parse_args()
+    if args.debug:
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
+    logging.debug(f"init_args:: args is set to: {args}")
+    logging.debug(f"init_args:: debug is set to: {args.debug}")
+    logging.debug(f"init_args:: database is set to: {args.database.name}")
+    return args
 
 
-# main
-try:
+def init() -> argparse.Namespace:
+    """Initialize the program.
+
+    Return:
+        argparse.Namespace -- namespace with all arguments from argparse
+    """
+    # general
+    signal.signal(signal.SIGINT, signal.SIG_DFL)  # for PyQt5 GUI
+    # arguments
+    args = init_args()
+    args.database.close()  # the file is opened by default by argparse
+    # matplotlib
+    # plot has a lot of DEBUG logging which we do not want to see
+    # so we raise log level to INFO
+    plot_logger = logging.getLogger("matplotlib")
+    plot_logger.setLevel(level=logging.INFO)
+    # style.use("fivethirtyeight")  # style for plotting output diagram
+    return args
+
+
+def window(args: argparse.Namespace, cursor: sqlite3.Cursor) -> int:
+    """Create the window and go into event loop.
+
+    Arguments:
+        argparse.Namespace -- namespace with all arguments from argparse
+        cursor:sqlite3.Cursor -- valid database cursor
+    Return:
+        int -- return code from QApplication app
+    """
+    app = QApplication([])
+    win = product_window(args, cursor)
+    win.show()
+    ret = app.exec()
+    return ret
+
+
+def main():
+    """Track Amazon prices."""
     args = init()
-    # window(args)
-    window()
-    # args.file.close()
+    connection = sqlite3.connect(args.database.name)
+    cursor = connection.cursor()
+    create_table(cursor)
+    logging.debug(f"main:: db contains these rows: {get_all(cursor)}")
+    ret = window(args, cursor)
+    logging.debug("main:: closing down database.")
+    connection.commit()
+    logging.debug(f"main:: db contains these rows: {get_all(cursor)}")
+    cursor.close()
+    connection.close()
+    logging.debug(f"main:: exiting with code {ret}.")
+    sys.exit(ret)
+
+
+try:
+    main()
 except KeyboardInterrupt:
     logging.debug("Received keyboard interrupt.")
     raise
