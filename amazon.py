@@ -13,12 +13,12 @@ from functools import partial
 import bs4 as bs
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
+import pyperclip
 from matplotlib import style
 from PyQt5 import QtWidgets
 from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import QApplication, QMainWindow
 
-filenameDefault = "products.json"
 conn = sqlite3.connect('amazon.db')
 c = conn.cursor()
 
@@ -40,8 +40,8 @@ class my_window(QMainWindow):
         """Set initial vars."""
         self.height = 140
         self.width = 30
-        self.width_button = 600
-        self.errorMesagge = "Too many requests, try again in 15 mins"
+        self.WIDTH_CLOSE_BUTTON = 600
+        self.WIDTH_LINK_BUTTON = 635
         self.data = get_one_from_each_url()
         # self.args = args
         self.icon = "/home/a/"
@@ -51,6 +51,7 @@ class my_window(QMainWindow):
         height = 50
 
         # Create main label
+        # TODO: make an on hover show the link
         label = QtWidgets.QLabel(self)
         # self.label[0].setStyleSheet("background-color: red")
         label.setText("Introduce the link of the product you want to track")
@@ -98,30 +99,29 @@ class my_window(QMainWindow):
         """Initialize labels."""
         self.products = []
         self.close_buttons = []
+        self.link_buttons = []
         self.products_index = 0
-        self.products_space_difference = 50
+        self.PRODUCTS_SPACE_DIFFERENCE = 50
         logging.debug(f"init_labels:: {self.data}")
         data = get_one_from_each_url()
         self.add_label(data)
 
     def add_label(self, newData):
         """Add label when the add label is called."""
-        color_green = "background-color: lightgreen"
-        color_red = "background-color: red"
+        COLOR_GREEN = "background-color: lightgreen"
+        COLOR_RED = "background-color: red"
         for row in newData:
             url = row[0]
             price = row[1]
             last_data = get_last_data(url)
-            # Check if the current url is deleted
-            if row[1] == -1:
-                continue
-
             try:
                 # This may fail
+                print("hihi")
+                # TODO: this is still old fix it, and try to not have to
+                # use the price into int only once and save it like and int in
+                # the db
                 if url in newData:
                     bigger = self.which_is_more_expensive(
-                        # self.last_data has to be something like
-                        # self.last_data[0][0]
                         price, last_data[1]
                     )
                     logging.debug(f"add_label:: Which is bigger {bigger}")
@@ -147,35 +147,53 @@ class my_window(QMainWindow):
             new_label.move(self.width, self.height)
             new_label.adjustSize()
             if bigger > 0:
-                new_label.setStyleSheet(color_red)
+                new_label.setStyleSheet(COLOR_RED)
             elif bigger < 0:
-                new_label.setStyleSheet(color_green)
+                new_label.setStyleSheet(COLOR_GREEN)
             elif bigger == 0:
                 new_label.setStyleSheet("background-color: lightblue")
             self.products.append(new_label)
 
             # Create the close button
-            new_button = QtWidgets.QPushButton(self)
-            new_button.setText("⨉")
+            close_button = QtWidgets.QPushButton(self)
+            close_button.setText("⨉")
             removeFunction = partial(
                 self.remove_products,
                 new_label,
-                new_button,
+                close_button,
                 self.products_index,
                 False,
                 url,
             )
-            new_button.setGeometry(self.width_button, self.height, 30, 25)
-            new_button.clicked.connect(removeFunction)
-            self.close_buttons.append(new_button)
+            close_button.setGeometry(self.WIDTH_CLOSE_BUTTON,
+                                     self.height, 30, 25)
+            close_button.clicked.connect(removeFunction)
+            self.close_buttons.append(close_button)
 
-            logging.debug(f"add_label:: {new_button}")
+            # Create the link button
+            link_button = QtWidgets.QPushButton(self)
+            link_button.setText("⇵")
+            copy_link = partial(
+                self.copy_link,
+                url,
+            )
+            link_button.setGeometry(self.WIDTH_LINK_BUTTON,
+                                    self.height, 30, 25)
+            link_button.clicked.connect(copy_link)
+            self.link_buttons.append(link_button)
+            logging.debug(f"add_label:: {link_button}")
 
             # Show the made items and increase iterators
             new_label.show()
-            new_button.show()
-            self.height += self.products_space_difference
+            close_button.show()
+            link_button.show()
+            self.height += self.PRODUCTS_SPACE_DIFFERENCE
             self.products_index += 1
+
+    def copy_link(self, url: str):
+        """Set the copy buffer to product url on link_button pressed."""
+        print(type(url), url)
+        pyperclip.copy(url)
 
     def remove_products(self, label, button, index, checked, url):
         """Remove products when the x button is pressed."""
@@ -207,12 +225,13 @@ class my_window(QMainWindow):
             y_pos_label = label.y()
             x_pos_label = button.y()
 
-            self.height -= self.products_space_difference
+            self.height -= self.PRODUCTS_SPACE_DIFFERENCE
 
             label.move(
-                self.width, y_pos_label - self.products_space_difference)
+                self.width, y_pos_label - self.PRODUCTS_SPACE_DIFFERENCE)
             button.move(
-                self.width_button, x_pos_label - self.products_space_difference
+                self.WIDTH_LINK_BUTTON, x_pos_label -
+                self.PRODUCTS_SPACE_DIFFERENCE
             )
 
     def new_value(self, url: str):
@@ -224,7 +243,7 @@ class my_window(QMainWindow):
             self.add_item_to_db(url, price)
             self.add_label(values)
 
-    def add_item_to_db(self, url, price):
+    def add_item_to_db(self, url: str, price: str):
         """Add a new value to the Db."""
         unix = time.time()
         date = str(datetime.datetime.fromtimestamp(unix).strftime(
@@ -246,6 +265,7 @@ class my_window(QMainWindow):
 
     def which_is_more_expensive(self, price1: str, price2: str) -> int:
         """Determine which is more expensive from the arguments."""
+        print(type(price1))
         price1 = self.convert_price_in_str(price1)
         price2 = self.convert_price_in_str(price2)
         if price1 > price2:
@@ -269,6 +289,7 @@ class my_window(QMainWindow):
             if price != row[1]:
                 c.execute("UPDATE amazon SET price = ? WHERE id = ?",
                           (price, row[2],))
+                conn.commit()
         # self.save_data()
 
 
@@ -336,10 +357,13 @@ def get_product_name(url: str) -> str:
         tag = tag.split('\n')
         # pylama:ignore=E203
         logging.debug(tag)
+        tag = tag[8]
     except urllib.request.HTTPError:
         logging.debug("except ocurred")
-        tag = "Too many requests, try again in 15 mins"
-    return f"{tag[8][0: 30]} ..."
+        tag = url
+    if len(tag) > 30:
+        return f"{tag[0:30]}..."
+    return tag
 
 
 def init() -> argparse.Namespace:
@@ -353,7 +377,7 @@ def init() -> argparse.Namespace:
     parser.add_argument(
         "-d",
         "--debug",
-        default=False,
+        default=True,
         action="store_true",
         help="Turn debug on",
     )
@@ -385,7 +409,7 @@ def init() -> argparse.Namespace:
 
 # main
 try:
-    # args = init()
+    args = init()
     # window(args)
     window()
     # args.file.close()

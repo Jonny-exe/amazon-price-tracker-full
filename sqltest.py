@@ -7,15 +7,13 @@ import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 from matplotlib import style
 
-conn = sqlite3.connect('amazon.db')
+conn = sqlite3.connect("amazon.db")
 c = conn.cursor()
 
 
 def getPriceFromDb(URL: str) -> int:
     """Read the database and return the price of the url in the arguments."""
-    c.execute('SELECT url, price FROM amazon WHERE url = ? ORDER BY id DESC',
-              (URL,)
-              )
+    c.execute("SELECT url, price FROM amazon WHERE url = ? ORDER BY id DESC", (URL,))
     data = c.fetchall()
     print(f"data [0] is : {data[0]}")
 
@@ -23,9 +21,11 @@ def getPriceFromDb(URL: str) -> int:
 
 
 def getSaveData(url):
-    c.execute("SELECT price FROM amazon WHERE url = ?\
+    c.execute(
+        "SELECT price FROM amazon WHERE url = ?\
      ORDER BY unix DESC LIMIT 2",
-              (url,))
+        (url,),
+    )
     data = c.fetchall()
 
     print(f"This is the data: {data[1]}")
@@ -34,7 +34,7 @@ def getSaveData(url):
 
 def getPriceFromDb2(URL: str) -> int:
     """Read the database and return the price of the url in the arguments."""
-    c.execute('SELECT url, price FROM amazon ORDER BY id DESC')
+    c.execute("SELECT url, price FROM amazon ORDER BY id DESC")
     data = c.fetchall()
     print(f"data [0] is : {data}")
     value = [(1, 2)]
@@ -44,13 +44,13 @@ def getPriceFromDb2(URL: str) -> int:
 def create_table():
     """Do creates a table."""
     c.execute(
-        'CREATE TABLE IF NOT EXISTS amazon(url TEXT, price INTEGER,\
-        datestamp TEXT, unix REAL, count REAL, id INTEGER PRIMARY KEY AUTOINCREMENT)'
+        "CREATE TABLE IF NOT EXISTS amazon(url TEXT, price INTEGER,\
+        datestamp TEXT, unix REAL, count REAL, id INTEGER PRIMARY KEY AUTOINCREMENT)"
     )
 
 
 def getAllData():
-    c.execute('SELECT * FROM amazon ORDER BY id DESC')
+    c.execute("SELECT * FROM amazon ORDER BY id DESC")
     data = c.fetchall()
     for row in data:
         print(row)
@@ -68,19 +68,19 @@ def dynamic_data_entry():
     for x in range(10):
         time.sleep(1)
         unix = time.time()
-        date = str(datetime.datetime.fromtimestamp(unix).strftime(
-            '%Y-%m-%-d %H: %M: %S'))
+        date = str(
+            datetime.datetime.fromtimestamp(unix).strftime("%Y-%m-%-d %H: %M: %S")
+        )
         price = random.randrange(0, 10)
-        c.execute("INSERT INTO amazon (url, price, datestamp, unix)"
-                  "VALUES(?, ?, ?, ?)",
-                  (url, price, date, unix))
+        c.execute(
+            "INSERT INTO amazon (url, price, datestamp, unix)" "VALUES(?, ?, ?, ?)",
+            (url, price, date, unix),
+        )
     conn.commit()
 
 
 def accesData(url):
-    c.execute("SELECT price FROM amazon WHERE url= ? ORDER BY price DESC",
-              ("hi",)
-              )
+    c.execute("SELECT price FROM amazon WHERE url= ? ORDER BY price DESC", ("hi",))
     data = c.fetchone()
     print("Hi")
     print(data)
