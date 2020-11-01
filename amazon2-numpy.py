@@ -1,18 +1,6 @@
 #!/usr/bin/python3
 """Track prices of Amazon products over time."""
 
-#
-# import sorted with: isort
-# linted with: pylama with pydocstyle-pep8, pydocstyle-257, pyflakes, McCabe
-# line length: 79
-# beautified with: black (line length 79)
-# pydocstyle: convention=numpy
-#    ~/.pydocstyle
-#    [pydocstyle]
-#    inherit = false
-#    match = .*\.py
-#    convention=numpy
-
 # Imports, sorted by isort
 import argparse
 import datetime
@@ -58,10 +46,7 @@ class ProductDatabase:
         """Initialize the class methods and instance variables.
 
         Arguments:
-<<<<<<< HEAD
-=======
         ---------
->>>>>>> aedb50af7d0e8880a19526ca33a02b23139de554
             args: argparse.Namespace -- arguments from argparse
             db_file_path: str -- path and name of sqlite3 database file
 
@@ -109,10 +94,7 @@ class ProductDatabase:
         """Get the last 2 rows.
 
         Arguments:
-<<<<<<< HEAD
-=======
         ---------
->>>>>>> aedb50af7d0e8880a19526ca33a02b23139de554
             url:str -- URL entry in db, used to search for rows
 
         """
@@ -144,10 +126,7 @@ class ProductDatabase:
         """Get unixtime and price for rows matching URL.
 
         Arguments:
-<<<<<<< HEAD
-=======
         ---------
->>>>>>> aedb50af7d0e8880a19526ca33a02b23139de554
             url:str -- URL entry in db, used to search for rows
 
         """
@@ -160,12 +139,8 @@ class ProductDatabase:
     def get_row_count(self) -> int:
         """Get number of rows.
 
-<<<<<<< HEAD
         Return:
-=======
-        Returns
-        -------
->>>>>>> aedb50af7d0e8880a19526ca33a02b23139de554
+        ------
             int -- number of rows in table pointed to by cursor
 
         """
@@ -177,10 +152,7 @@ class ProductDatabase:
         """Delete rows matching URL.
 
         Arguments:
-<<<<<<< HEAD
-=======
         ---------
->>>>>>> aedb50af7d0e8880a19526ca33a02b23139de554
             url:str -- URL entry in db, used to delete rows
 
         """
@@ -208,10 +180,7 @@ class ProductWindow(QMainWindow):
         """Initialize the class methods and instance variables.
 
         Arguments:
-<<<<<<< HEAD
-=======
         ---------
->>>>>>> aedb50af7d0e8880a19526ca33a02b23139de554
             args: argparse.Namespace -- arguments from argparse
             db: ProductDatabase -- sqlite3 database object
 
@@ -306,7 +275,7 @@ class ProductWindow(QMainWindow):
                 # use the price into int only once and save it like an int in
                 # the db
                 if url in newData:
-                    bigger = which_is_more_expensive(price, last_data[1])
+                    bigger = self.which_is_more_expensive(price, last_data[1])
                     logging.debug(f"add_label:: Which is bigger {bigger}")
                     logging.debug(f"add_label:: {last_data[0]} vs {row[0]}")
                 else:
@@ -472,8 +441,7 @@ class ProductWindow(QMainWindow):
 
         for row in data:
             dates_datetime.append(datetime.datetime.fromtimestamp(row[0]))
-            price = row[1].replace(",", ".")
-            prices_float.append(float(price))
+            prices_float.append(float(row[1]))
 
         # already set logger level to INFO in init() to avoid spam
         plot.plot_date(dates_datetime, prices_float, "-")
@@ -547,16 +515,12 @@ def get_price(args: argparse.Namespace, url: str) -> str:
     """Get price for given URL via web scraping.
 
     Arguments:
-<<<<<<< HEAD
-        url:str -- Amazon product URL
-    Return:
-=======
     ---------
         args:argparse.Namespace -- arguments from argparse
         url:str -- Amazon product URL
-    Returns:
-    -------
->>>>>>> aedb50af7d0e8880a19526ca33a02b23139de554
+
+    Return:
+    ------
         str -- product price
 
     """
@@ -579,7 +543,7 @@ def get_price(args: argparse.Namespace, url: str) -> str:
             except AttributeError:
                 tag = "Not available "
 
-        tag = tag[0: len(tag) - 2]  # noqa
+        tag = tag[0 : len(tag) - 2]  # noqa
         logging.debug(f"get_price:: tag is {tag}")
     except urllib.request.HTTPError as e:
         logging.debug(f"get_price:: exception occurred: {e}")
@@ -596,15 +560,10 @@ def get_product_name(url: str) -> str:
     """Get the product name for a given URL via web scraping.
 
     Arguments:
-<<<<<<< HEAD
-        url:str -- Amazon product URL
-    Return:
-=======
     ---------
         url:str -- Amazon product URL
-    Returns:
-    -------
->>>>>>> aedb50af7d0e8880a19526ca33a02b23139de554
+    Return:
+    ------
         str -- product name
 
     """
@@ -634,12 +593,8 @@ def get_product_name(url: str) -> str:
 def init_args() -> argparse.Namespace:
     """Initialize the arguments.
 
-<<<<<<< HEAD
     Return:
-=======
-    Returns
-    -------
->>>>>>> aedb50af7d0e8880a19526ca33a02b23139de554
+    ------
         argparse.Namespace -- namespace with all arguments
 
     """
@@ -693,12 +648,8 @@ def init_args() -> argparse.Namespace:
 def init() -> argparse.Namespace:
     """Initialize the program.
 
-<<<<<<< HEAD
     Return:
-=======
-    Returns
-    -------
->>>>>>> aedb50af7d0e8880a19526ca33a02b23139de554
+    ------
         argparse.Namespace -- namespace with all arguments from argparse
 
     """
@@ -720,17 +671,11 @@ def window(args: argparse.Namespace, db: ProductDatabase) -> int:
     """Create the window and go into event loop.
 
     Arguments:
-<<<<<<< HEAD
-        argparse.Namespace -- namespace with all arguments from argparse
-        db: ProductDatabase -- sqlite3 database object
-    Return:
-=======
     ---------
         args:argparse.Namespace -- namespace with all arguments from argparse
         db: ProductDatabase -- sqlite3 database object
     Returns:
     -------
->>>>>>> aedb50af7d0e8880a19526ca33a02b23139de554
         int -- return code from QApplication app
 
     """
