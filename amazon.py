@@ -76,7 +76,7 @@ class ProductDatabase:
     def create_table(self):
         """Create table iff does not exist."""
         self.cursor.execute(
-            "CREATE TABLE IF NOT EXISTS amazon(url TEXT, price TEXT, "
+            "CREATE TABLE IF NOT EXISTS amazon(url TEXT, price REAL, "
             "datestamp TEXT, unix REAL, id INTEGER PRIMARY KEY AUTOINCREMENT)"
         )
         self.cursor.connection.commit()
@@ -90,7 +90,7 @@ class ProductDatabase:
         self.cursor.close()
         self.cursor.connection.close()
 
-    def add_item_to_db(self, url: str, price: str):
+    def add_item_to_db(self, url: str, price: int):
         """Add a new product to the database."""
         unix = time.time()
         date = str(
@@ -120,6 +120,7 @@ class ProductDatabase:
             (url,),
         )
         data = self.cursor.fetchall()
+        print(data)
         return data[1] if len(data) > 1 else data[0]
 
     def get_one_from_each_url(self):
@@ -138,7 +139,7 @@ class ProductDatabase:
         data = self.cursor.fetchall()
         return data
 
-    def get_unixtime_price_for_url(self, url: str):
+    def get_unixtime_price_for_url(self, url: str) -> tuple:
         """Get unixtime and price for rows matching URL.
 
         Arguments:
@@ -285,7 +286,6 @@ class ProductWindow(QMainWindow):
             url = row[0]
             price = row[1]
             last_data = self.db.get_last_data(url)[0]
-            print(type(last_data), last_data)
             try:
                 # TODO: this is still old. fix it, and try to not have to
                 # use the price into int only once and save it like an int in
@@ -339,13 +339,13 @@ class ProductWindow(QMainWindow):
         elif bigger == 0:
             label.setStyleSheet(COLOR_BLUE)
 
-    def create_new_label(self, url: str, price: str):
+    def create_new_label(self, url: str, price: int):
         """Create a new label."""
         short_url = self.shorten_url(url)
 
         new_label = QtWidgets.QLabel(self)
         new_label.setText(
-            f"Product {(self.products_index+1)}: {price}€\n{short_url}"
+            f"Product {(self.products_index+1)}: {str(price)}€\n{short_url}"
         )
         new_label.move(self.width, self.height)
         new_label.adjustSize()
@@ -459,14 +459,14 @@ class ProductWindow(QMainWindow):
         data = self.db.get_unixtime_price_for_url(url)
         # do not use strings with plot, use float and datetime
         dates_datetime = []
-        prices_float = []
+        prices = []
 
         for row in data:
             dates_datetime.append(datetime.datetime.fromtimestamp(row[0]))
-            prices_float.append(atof(row[1]))
+            prices.append(row[1])
 
         # already set logger level to INFO in init() to avoid spam
-        plot.plot_date(dates_datetime, prices_float, "-")
+        plot.plot_date(dates_datetime, prices, "-")
         plot.show()
 
     def new_value(self, url: str):
@@ -475,17 +475,16 @@ class ProductWindow(QMainWindow):
             logging.debug("new_value: empty URL ignored.")
             return
         value_exists = self.db.value_already_exists(url)
+        price = get_price(self.args, url)
         if not value_exists:
-            price = str(get_price(self.args, url))
-            if price != ERROR_MSG_429:
+            if price != -1:
                 values = [(url, price)]
                 self.db.add_item_to_db(url, price)
                 self.add_label(values)
                 logging.debug(f"new_value: product for {url} added.")
         else:
             # already exists, but update the price
-            price = str(get_price(self.args, url))
-            if price != ERROR_MSG_429:
+            if price != -1:
                 self.db.add_item_to_db(url, price)
                 logging.debug(f"new_value: product price for {url} updated.")
 
@@ -507,8 +506,6 @@ class ProductWindow(QMainWindow):
 
 def which_is_more_expensive(price1: str, price2: str) -> int:
     """Determine which price is higher."""
-    price1 = convert_price_in_str(price1)
-    price2 = convert_price_in_str(price2)
     if price1 > price2:
         return 1  # If price1 is bigger return 1
     elif price1 < price2:
@@ -520,17 +517,6 @@ def copy_link_to_clipboard(url: str):
     """Copy URL to system clipboard."""
     pyperclip.copy(url)
     logging.debug(f"copy_link_to_clipboard:: copied URL {url} to clipboard.")
-
-
-def convert_price_in_str(price: str) -> int:
-    """Convert the price string into an integer."""
-    try:
-        price_int = price.replace(",", ".")
-        price_int = atof(price_int)
-        return price_int
-    except ValueError as e:
-        logging.debug(f"convert_price_in_str:: failed to convert price: {e}")
-        return 0
 
 
 def get_price(args: argparse.Namespace, url: str) -> str:
@@ -546,7 +532,7 @@ def get_price(args: argparse.Namespace, url: str) -> str:
 
     """
     if args.fake_prices:
-        random_price = str(random.randint(10, 100))
+        random_price = random.randint(10, 100)
         logging.debug(
             f"get_price:: faking price {random_price}. Avoid URL scraping."
         )
@@ -565,15 +551,16 @@ def get_price(args: argparse.Namespace, url: str) -> str:
                 tag = "Not available "
 
         tag = tag[0: len(tag) - 2]  # noqa
+        tag = atof(tag)
         logging.debug(f"get_price:: tag is {tag}")
     except urllib.request.HTTPError as e:
         logging.debug(f"get_price:: exception occurred: {e}")
         logging.debug("get_price:: Looks like Amazon responded with an error.")
-        tag = ERROR_MSG_429
+        tag = -1
     except Exception as e:
         logging.debug(f"get_price:: exception occurred: {e}")
         logging.debug("get_price:: Did you enter a valid URL?")
-        tag = ERROR_MSG_429
+        tag = -1
     return tag
 
 
