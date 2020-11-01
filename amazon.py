@@ -269,7 +269,7 @@ class ProductWindow(QMainWindow):
                 # use the price into int only once and save it like an int in
                 # the db
                 if url in newData:
-                    bigger = self.which_is_more_expensive(price, last_data[1])
+                    bigger = which_is_more_expensive(price, last_data[1])
                     logging.debug(f"add_label:: Which is bigger {bigger}")
                     logging.debug(f"add_label:: {last_data[0]} vs {row[0]}")
                 else:
@@ -435,7 +435,8 @@ class ProductWindow(QMainWindow):
 
         for row in data:
             dates_datetime.append(datetime.datetime.fromtimestamp(row[0]))
-            prices_float.append(float(row[1]))
+            price = row[1].replace(",", ".")
+            prices_float.append(float(price))
 
         # already set logger level to INFO in init() to avoid spam
         plot.plot_date(dates_datetime, prices_float, "-")
