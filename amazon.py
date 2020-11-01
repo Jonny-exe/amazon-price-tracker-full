@@ -58,10 +58,7 @@ class ProductDatabase:
         """Initialize the class methods and instance variables.
 
         Arguments:
-<<<<<<< HEAD
-=======
         ---------
->>>>>>> aedb50af7d0e8880a19526ca33a02b23139de554
             args: argparse.Namespace -- arguments from argparse
             db_file_path: str -- path and name of sqlite3 database file
 
@@ -109,10 +106,7 @@ class ProductDatabase:
         """Get the last 2 rows.
 
         Arguments:
-<<<<<<< HEAD
-=======
         ---------
->>>>>>> aedb50af7d0e8880a19526ca33a02b23139de554
             url:str -- URL entry in db, used to search for rows
 
         """
@@ -144,10 +138,7 @@ class ProductDatabase:
         """Get unixtime and price for rows matching URL.
 
         Arguments:
-<<<<<<< HEAD
-=======
         ---------
->>>>>>> aedb50af7d0e8880a19526ca33a02b23139de554
             url:str -- URL entry in db, used to search for rows
 
         """
@@ -160,12 +151,8 @@ class ProductDatabase:
     def get_row_count(self) -> int:
         """Get number of rows.
 
-<<<<<<< HEAD
-        Return:
-=======
         Returns
         -------
->>>>>>> aedb50af7d0e8880a19526ca33a02b23139de554
             int -- number of rows in table pointed to by cursor
 
         """
@@ -177,10 +164,7 @@ class ProductDatabase:
         """Delete rows matching URL.
 
         Arguments:
-<<<<<<< HEAD
-=======
         ---------
->>>>>>> aedb50af7d0e8880a19526ca33a02b23139de554
             url:str -- URL entry in db, used to delete rows
 
         """
@@ -208,10 +192,7 @@ class ProductWindow(QMainWindow):
         """Initialize the class methods and instance variables.
 
         Arguments:
-<<<<<<< HEAD
-=======
         ---------
->>>>>>> aedb50af7d0e8880a19526ca33a02b23139de554
             args: argparse.Namespace -- arguments from argparse
             db: ProductDatabase -- sqlite3 database object
 
@@ -547,16 +528,11 @@ def get_price(args: argparse.Namespace, url: str) -> str:
     """Get price for given URL via web scraping.
 
     Arguments:
-<<<<<<< HEAD
-        url:str -- Amazon product URL
-    Return:
-=======
     ---------
         args:argparse.Namespace -- arguments from argparse
         url:str -- Amazon product URL
     Returns:
     -------
->>>>>>> aedb50af7d0e8880a19526ca33a02b23139de554
         str -- product price
 
     """
@@ -596,15 +572,10 @@ def get_product_name(url: str) -> str:
     """Get the product name for a given URL via web scraping.
 
     Arguments:
-<<<<<<< HEAD
-        url:str -- Amazon product URL
-    Return:
-=======
     ---------
         url:str -- Amazon product URL
     Returns:
     -------
->>>>>>> aedb50af7d0e8880a19526ca33a02b23139de554
         str -- product name
 
     """
@@ -634,12 +605,8 @@ def get_product_name(url: str) -> str:
 def init_args() -> argparse.Namespace:
     """Initialize the arguments.
 
-<<<<<<< HEAD
-    Return:
-=======
     Returns
     -------
->>>>>>> aedb50af7d0e8880a19526ca33a02b23139de554
         argparse.Namespace -- namespace with all arguments
 
     """
@@ -693,12 +660,8 @@ def init_args() -> argparse.Namespace:
 def init() -> argparse.Namespace:
     """Initialize the program.
 
-<<<<<<< HEAD
-    Return:
-=======
     Returns
     -------
->>>>>>> aedb50af7d0e8880a19526ca33a02b23139de554
         argparse.Namespace -- namespace with all arguments from argparse
 
     """
@@ -720,17 +683,11 @@ def window(args: argparse.Namespace, db: ProductDatabase) -> int:
     """Create the window and go into event loop.
 
     Arguments:
-<<<<<<< HEAD
-        argparse.Namespace -- namespace with all arguments from argparse
-        db: ProductDatabase -- sqlite3 database object
-    Return:
-=======
     ---------
         args:argparse.Namespace -- namespace with all arguments from argparse
         db: ProductDatabase -- sqlite3 database object
     Returns:
     -------
->>>>>>> aedb50af7d0e8880a19526ca33a02b23139de554
         int -- return code from QApplication app
 
     """
