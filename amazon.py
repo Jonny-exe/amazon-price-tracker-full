@@ -282,6 +282,7 @@ class ProductWindow(QMainWindow):
 
     def add_label(self, newData):
         """Add label when the add label is called."""
+        print(self.height)
         for row in newData:
             url = row[0]
             price = row[1]
@@ -420,6 +421,7 @@ class ProductWindow(QMainWindow):
         graph_button.hide()
         label.hide()
 
+        self.height -= self.PRODUCTS_SPACE_DIFFERENCE
         self.db.delete_rows_for_url(url)
         self.replace_products(index)
 
@@ -433,8 +435,6 @@ class ProductWindow(QMainWindow):
 
             y_pos_label = label.y()
             y_pos_button = close_button.y()
-
-            self.height -= self.PRODUCTS_SPACE_DIFFERENCE
 
             label.move(
                 self.width, y_pos_label - self.PRODUCTS_SPACE_DIFFERENCE
