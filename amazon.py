@@ -13,7 +13,6 @@
 #    match = .*\.py
 #    convention=numpy
 
-# Imports, sorted by isort
 import argparse
 import datetime
 import logging
@@ -24,13 +23,18 @@ import sys
 import time
 import urllib.request
 from functools import partial
+from locale import LC_MONETARY, LC_NUMERIC, atof, setlocale
 
 import bs4 as bs
 import matplotlib.pyplot as plot
 import pyperclip
 from PyQt5 import QtWidgets
 from PyQt5.QtGui import QFont
-from PyQt5.QtWidgets import QApplication, QMainWindow
+# Imports, sorted by isort
+from PyQt5.QtWidgets import QApplication, QMainWindow, QToolTip
+
+setlocale(LC_NUMERIC, '')  # set to your default locale
+setlocale(LC_MONETARY, '')  # set to your default locale
 
 # Global Constants
 DEFAULT_DB_FILENAME = "amazon.db"
@@ -366,26 +370,29 @@ class ProductWindow(QMainWindow):
             url,
         )
         close_button.setGeometry(self.WIDTH_CLOSE_BUTTON, self.height, 30, 25)
+        close_button.setToolTip("Remove product")
         close_button.clicked.connect(remove_function)
         return close_button
 
     def create_new_link_button(self, url: str):
         """Create a new link button."""
-        link_button = QtWidgets.QPushButton(self)
+        link_button = QtWidgets.QPushButton('Pyqt', self)
         # copy © icon, link 🔗 ⛓ url unicode
         link_button.setText("🔗")
         copy_link = partial(copy_link_to_clipboard, url)
         link_button.setGeometry(self.WIDTH_LINK_BUTTON, self.height, 30, 25)
+        link_button.setToolTip("Get product link")
         link_button.clicked.connect(copy_link)
         return link_button
 
     def create_new_graph_button(self, url):
         """Create a new show graph button."""
-        graph_button = QtWidgets.QPushButton(self)
+        graph_button = QtWidgets.QPushButton('Pyqt', self)
         # graph ⇵, chart icon 💹, chart 📉 📈 unicode
         graph_button.setText("📉")
         show_product_price_graph = partial(self.show_product_price_graph, url)
         graph_button.setGeometry(self.WIDTH_GRAPH_BUTTON, self.height, 30, 25)
+        graph_button.setToolTip("Get product price graph")
         graph_button.clicked.connect(show_product_price_graph)
         return graph_button
 
@@ -457,7 +464,7 @@ class ProductWindow(QMainWindow):
         for row in data:
             dates_datetime.append(datetime.datetime.fromtimestamp(row[0]))
             price = row[1].replace(",", ".")
-            prices_float.append(float(price))
+            prices_float.append(atof(price))
 
         # already set logger level to INFO in init() to avoid spam
         plot.plot_date(dates_datetime, prices_float, "-")
@@ -520,7 +527,7 @@ def convert_price_in_str(price: str) -> int:
     """Convert the price string into an integer."""
     try:
         price_int = price.replace(",", ".")
-        price_int = float(price_int)
+        price_int = atof(price_int)
         return price_int
     except ValueError as e:
         logging.debug(f"convert_price_in_str:: failed to convert price: {e}")
