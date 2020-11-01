@@ -463,8 +463,7 @@ class ProductWindow(QMainWindow):
 
         for row in data:
             dates_datetime.append(datetime.datetime.fromtimestamp(row[0]))
-            price = row[1].replace(",", ".")
-            prices_float.append(atof(price))
+            prices_float.append(atof(row[1]))
 
         # already set logger level to INFO in init() to avoid spam
         plot.plot_date(dates_datetime, prices_float, "-")
