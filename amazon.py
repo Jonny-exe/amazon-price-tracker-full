@@ -31,7 +31,7 @@ import pyperclip
 from PyQt5 import QtWidgets
 from PyQt5.QtGui import QFont
 # Imports, sorted by isort
-from PyQt5.QtWidgets import QApplication, QMainWindow, QToolTip
+from PyQt5.QtWidgets import QApplication, QMainWindow
 
 setlocale(LC_NUMERIC, '')  # set to your default locale
 setlocale(LC_MONETARY, '')  # set to your default locale
@@ -120,9 +120,7 @@ class ProductDatabase:
             (url,),
         )
         data = self.cursor.fetchall()
-        if len(data) > 1:
-            return data[1]
-        return data[0]
+        return data[1] if len(data) > 1 else data[0]
 
     def get_one_from_each_url(self):
         """Get one row for each URL."""
@@ -283,22 +281,18 @@ class ProductWindow(QMainWindow):
 
     def add_label(self, newData):
         """Add label when the add label is called."""
-        COLOR_GREEN = "background-color: lightgreen"
-        COLOR_RED = "background-color: red"
         for row in newData:
             url = row[0]
             price = row[1]
-            last_data = self.db.get_last_data(url)
+            last_data = self.db.get_last_data(url)[0]
+            print(type(last_data), last_data)
             try:
                 # TODO: this is still old. fix it, and try to not have to
                 # use the price into int only once and save it like an int in
                 # the db
-                if url in newData:
-                    bigger = which_is_more_expensive(price, last_data[1])
-                    logging.debug(f"add_label:: Which is bigger {bigger}")
-                    logging.debug(f"add_label:: {last_data[0]} vs {row[0]}")
-                else:
-                    bigger = 0
+                bigger = which_is_more_expensive(price, last_data)
+                logging.debug(f"add_label:: Which is bigger {bigger}")
+                logging.debug(f"add_label:: {last_data} vs {price}")
             except ValueError:  # catch *all* exceptions
                 e = sys.exc_info()[0]
                 logging.error(
@@ -307,14 +301,7 @@ class ProductWindow(QMainWindow):
 
             # Create the label and define the color
             new_label = self.create_new_label(url, price)
-
-            if bigger > 0:
-                new_label.setStyleSheet(COLOR_RED)
-            elif bigger < 0:
-                new_label.setStyleSheet(COLOR_GREEN)
-            elif bigger == 0:
-                new_label.setStyleSheet("background-color: lightblue")
-
+            self.set_label_color(new_label, bigger)
             self.products.append(new_label)
 
             # Create the link button
@@ -340,7 +327,19 @@ class ProductWindow(QMainWindow):
             self.height += self.PRODUCTS_SPACE_DIFFERENCE
             self.products_index += 1
 
-    def create_new_label(self, url, price):
+    def set_label_color(self, label, bigger: int):
+        """Set the color label depending if the price went up or down."""
+        COLOR_GREEN = "background-color: lightgreen"
+        COLOR_RED = "background-color: red"
+        COLOR_BLUE = "background-color: lightblue"
+        if bigger > 0:
+            label.setStyleSheet(COLOR_RED)
+        elif bigger < 0:
+            label.setStyleSheet(COLOR_GREEN)
+        elif bigger == 0:
+            label.setStyleSheet(COLOR_BLUE)
+
+    def create_new_label(self, url: str, price: str):
         """Create a new label."""
         short_url = self.shorten_url(url)
 
@@ -369,6 +368,7 @@ class ProductWindow(QMainWindow):
             False,
             url,
         )
+
         close_button.setGeometry(self.WIDTH_CLOSE_BUTTON, self.height, 30, 25)
         close_button.setToolTip("Remove product")
         close_button.clicked.connect(remove_function)
