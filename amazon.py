@@ -103,7 +103,7 @@ class ProductDatabase:
         logging.debug(f"add_item_to_db: product for {url} added to db.")
 
     def get_last_data(self, url: str):
-        """Get the last 2 rows.
+        """Get second but last price. If only one row exists return last price.
 
         Arguments:
         ---------
@@ -116,6 +116,8 @@ class ProductDatabase:
             (url,),
         )
         data = self.cursor.fetchall()
+        if len(data) > 1:
+            return data[1]
         return data[0]
 
     def get_one_from_each_url(self):
@@ -175,7 +177,8 @@ class ProductDatabase:
     def value_already_exists(self, url: str) -> bool:
         """Determine if the product already exists."""
         self.cursor.execute("SELECT id FROM amazon WHERE url= ?", (url,))
-        return self.cursor.fetchone()  # True if one is found
+        return True if self.cursor.fetchone() else False
+        # True if one is found
 
 
 ################################################################
