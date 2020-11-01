@@ -1,6 +1,18 @@
 #!/usr/bin/python3
 """Track prices of Amazon products over time."""
 
+#
+# import sorted with: isort
+# linted with: pylama with pydocstyle-pep8, pydocstyle-257, pyflakes, McCabe
+# line length: 79
+# beautified with: black (line length 79)
+# pydocstyle: convention=numpy
+#    ~/.pydocstyle
+#    [pydocstyle]
+#    inherit = false
+#    match = .*\.py
+#    convention=numpy
+
 # Imports, sorted by isort
 import argparse
 import datetime
@@ -46,9 +58,10 @@ class ProductDatabase:
         """Initialize the class methods and instance variables.
 
         Arguments:
-        ==========
+        ---------
             args: argparse.Namespace -- arguments from argparse
             db_file_path: str -- path and name of sqlite3 database file
+
         """
         self.connection = sqlite3.connect(db_file_path)
         self.cursor = self.connection.cursor()  # sqlite3.Cursor
@@ -93,8 +106,9 @@ class ProductDatabase:
         """Get the last 2 rows.
 
         Arguments:
-        ==========
+        ---------
             url:str -- URL entry in db, used to search for rows
+
         """
         self.cursor.execute(
             "SELECT price FROM amazon WHERE url = ? "
@@ -124,8 +138,9 @@ class ProductDatabase:
         """Get unixtime and price for rows matching URL.
 
         Arguments:
-        ==========
+        ---------
             url:str -- URL entry in db, used to search for rows
+
         """
         self.cursor.execute(
             "SELECT unix, price FROM amazon WHERE url = ?", (url,)
@@ -136,9 +151,10 @@ class ProductDatabase:
     def get_row_count(self) -> int:
         """Get number of rows.
 
-        Return:
-        =======
+        Returns
+        -------
             int -- number of rows in table pointed to by cursor
+
         """
         self.cursor.execute("SELECT COUNT(*) AS count FROM amazon")
         data = self.cursor.fetchall()  # e.g [(18,)]
@@ -148,8 +164,9 @@ class ProductDatabase:
         """Delete rows matching URL.
 
         Arguments:
-        ==========
+        ---------
             url:str -- URL entry in db, used to delete rows
+
         """
         # Set url to deleted
         self.cursor.execute("DELETE FROM amazon WHERE url = ?", (url,))
@@ -175,9 +192,10 @@ class ProductWindow(QMainWindow):
         """Initialize the class methods and instance variables.
 
         Arguments:
-        ==========
+        ---------
             args: argparse.Namespace -- arguments from argparse
             db: ProductDatabase -- sqlite3 database object
+
         """
         super(ProductWindow, self).__init__()
         self.new_vars(args, db)  # sets instance variables
@@ -505,15 +523,17 @@ def convert_price_in_str(price: str) -> int:
         return 0
 
 
-def get_price(args, url: str) -> str:
+def get_price(args: argparse.Namespace, url: str) -> str:
     """Get price for given URL via web scraping.
 
     Arguments:
-    ==========
+    ---------
+        args:argparse.Namespace -- arguments from argparse
         url:str -- Amazon product URL
-    Return:
-    =======
+    Returns:
+    -------
         str -- product price
+
     """
     if args.fake_prices:
         random_price = str(random.randint(10, 100))
@@ -551,11 +571,12 @@ def get_product_name(url: str) -> str:
     """Get the product name for a given URL via web scraping.
 
     Arguments:
-    ==========
+    ---------
         url:str -- Amazon product URL
-    Return:
-    =======
+    Returns:
+    -------
         str -- product name
+
     """
     try:
         sauce = urllib.request.urlopen(url)
@@ -583,9 +604,10 @@ def get_product_name(url: str) -> str:
 def init_args() -> argparse.Namespace:
     """Initialize the arguments.
 
-    Return:
-    =======
+    Returns
+    -------
         argparse.Namespace -- namespace with all arguments
+
     """
     # argparse
     signal.signal(signal.SIGINT, signal.SIG_DFL)
@@ -637,9 +659,10 @@ def init_args() -> argparse.Namespace:
 def init() -> argparse.Namespace:
     """Initialize the program.
 
-    Return:
-    =======
+    Returns
+    -------
         argparse.Namespace -- namespace with all arguments from argparse
+
     """
     # general
     signal.signal(signal.SIGINT, signal.SIG_DFL)  # for PyQt5 GUI
@@ -659,12 +682,13 @@ def window(args: argparse.Namespace, db: ProductDatabase) -> int:
     """Create the window and go into event loop.
 
     Arguments:
-    ==========
-        argparse.Namespace -- namespace with all arguments from argparse
+    ---------
+        args:argparse.Namespace -- namespace with all arguments from argparse
         db: ProductDatabase -- sqlite3 database object
-    Return:
-    =======
+    Returns:
+    -------
         int -- return code from QApplication app
+
     """
     app = QApplication([])
     win = ProductWindow(args, db)
