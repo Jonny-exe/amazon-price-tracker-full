@@ -531,6 +531,7 @@ def get_price(args: argparse.Namespace, url: str) -> str:
         str -- product price
 
     """
+    print("HIHIHIHs")
     if args.fake_prices:
         random_price = random.randint(10, 100)
         logging.debug(
@@ -550,9 +551,14 @@ def get_price(args: argparse.Namespace, url: str) -> str:
             except AttributeError:
                 tag = "Not available "
 
-        tag = tag[0: len(tag) - 2]  # noqa
-        tag = atof(tag)
-        logging.debug(f"get_price:: tag is {tag}")
+        logging.debug(f"get_price:: {tag}.")
+        if "amazon.es" in url:
+            tag = tag[0: len(tag) - 2]  # noqa
+            tag = atof(tag)
+            logging.debug(f"get_price:: tag is {tag}")
+        else:
+            tag = tag[1: len(tag)]
+            tag = atof(tag)
     except urllib.request.HTTPError as e:
         logging.debug(f"get_price:: exception occurred: {e}")
         logging.debug("get_price:: Looks like Amazon responded with an error.")
