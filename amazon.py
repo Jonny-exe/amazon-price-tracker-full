@@ -531,7 +531,6 @@ def get_price(args: argparse.Namespace, url: str) -> str:
         str -- product price
 
     """
-    print("HIHIHIHs")
     if args.fake_prices:
         random_price = random.randint(10, 100)
         logging.debug(
